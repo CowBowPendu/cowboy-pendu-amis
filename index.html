@@ -67,20 +67,24 @@ button:hover { opacity:0.8;}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// --- Configuration Firebase ---
+// =========================
+// 🔹 CONFIGURATION FIREBASE
+// =========================
 const firebaseConfig = {
-    apiKey: "VOTRE_API_KEY",
-    authDomain: "VOTRE_PROJECT.firebaseapp.com",
-    databaseURL: "https://VOTRE_PROJECT.firebaseio.com",
-    projectId: "VOTRE_PROJECT_ID",
-    storageBucket: "VOTRE_PROJECT.appspot.com",
-    messagingSenderId: "SENDER_ID",
-    appId: "APP_ID"
+  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
+  authDomain: "cowboy-entre-amis.firebaseapp.com",
+  databaseURL: "https://cowboy-entre-amis-default-rtdb.firebaseio.com",
+  projectId: "cowboy-entre-amis",
+  storageBucket: "cowboy-entre-amis.firebasestorage.app",
+  messagingSenderId: "561482687512",
+  appId: "1:561482687512:web:846729411c9158d3ea0f6d"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- Variables ---
+// =========================
+// 🔹 VARIABLES DU JEU
+// =========================
 const words = ["cowboy","cheval","lasso","saloon","pistolet"];
 let roomId = "";
 let playerName = "";
@@ -91,7 +95,9 @@ let players = [];
 let turn = 0;
 let userRef = null;
 
-// --- UI Elements ---
+// =========================
+// 🔹 ÉLÉMENTS UI
+// =========================
 const wordDisplay = document.getElementById("word-display");
 const lettersDiv = document.getElementById("letters");
 const statusDiv = document.getElementById("status");
@@ -103,7 +109,9 @@ const connectedPlayersUL = document.getElementById("connected-players");
 const notificationsDiv = document.getElementById("notifications");
 const errorMessageP = document.getElementById("error-message");
 
-// --- Création / Rejoindre ---
+// =========================
+// 🔹 CRÉATION / REJOINDRE
+// =========================
 function generateRoomId(){ return Math.random().toString(36).substring(2,8).toUpperCase(); }
 
 function createRoom() {
@@ -138,7 +146,9 @@ function joinRoom() {
     });
 }
 
-// --- Rejoindre UI avec présence ---
+// =========================
+// 🔹 JOINDRE LA ROOM AVEC PRÉSENCE
+// =========================
 function joinRoomUI() {
     document.getElementById("join-create").style.display="none";
     roomInfoDiv.style.display="block";
@@ -150,7 +160,9 @@ function joinRoomUI() {
     listenRoom();
 }
 
-// --- Écoute Firebase ---
+// =========================
+// 🔹 ÉCOUTE FIREBASE EN TEMPS RÉEL
+// =========================
 function listenRoom() {
     const roomRef = db.ref("rooms/" + roomId);
     roomRef.on("value", snapshot => {
@@ -168,14 +180,10 @@ function listenRoom() {
         updateTurnInfo();
         updateLeaderboard(data.players);
 
-        // Présence
         const presenceData = data.presence || {};
         updateConnectedPlayers(presenceData);
-
-        // Notifications
         notificationsDiv.textContent = "Joueurs présents : " + Object.keys(presenceData).join(", ");
 
-        // Ajuste tour si joueur absent
         if(players[turn % players.length] && !presenceData[players[turn % players.length]]){
             db.ref(`rooms/${roomId}/turn`).set(turn + 1);
         }
@@ -184,7 +192,9 @@ function listenRoom() {
     });
 }
 
-// --- Jeu ---
+// =========================
+// 🔹 JEU
+// =========================
 function updateWordDisplay() {
     let display = "";
     for(let l of currentWord) display += guessedLetters.includes(l)? l+" ":"_ ";
@@ -202,22 +212,19 @@ function generateLetterButtons() {
         const letter = String.fromCharCode(c);
         const btn=document.createElement("button");
         btn.textContent=letter;
-        // Désactiver si déjà deviné
         if(guessedLetters.includes(letter)) btn.disabled = true;
 
         btn.onclick = () => {
-            if(guessedLetters.includes(letter)) return; // Sécurité double clic
-            guessedLetters.push(letter); // Mise à jour locale immédiate
+            if(guessedLetters.includes(letter)) return;
+            guessedLetters.push(letter);
             btn.disabled = true;
 
             if(!currentWord.includes(letter)){
                 attemptsLeft--;
             } else {
-                // Ajouter score
                 db.ref(`rooms/${roomId}/players/${playerName}`).transaction(val => (val||0)+1);
             }
 
-            // Mettre à jour Firebase
             db.ref(`rooms/${roomId}/guessedLetters`).set(guessedLetters);
             db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
             db.ref(`rooms/${roomId}/turn`).set(turn + 1);
