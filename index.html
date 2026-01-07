@@ -2,52 +2,44 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cowboy Pendu Multijoueur 🤠</title>
+<title>Cowboy Pendu 🤠</title>
 
 <style>
-body { font-family: Arial; background:#f0f0f0; margin:0; padding:0; text-align:center; }
-header { background:#8b4513; color:white; padding:15px; }
-#game { background:white; max-width:600px; margin:20px auto; padding:20px; border-radius:10px; }
-#word { font-size:2em; letter-spacing:8px; margin:20px; }
-#letters button { width:40px; height:40px; margin:3px; }
-#error { color:red; }
+body { font-family: Arial; background:#eee; text-align:center; }
+#game { background:white; padding:20px; margin:20px auto; width:400px; border-radius:10px; }
+#word { font-size:32px; letter-spacing:10px; margin:20px; }
+#letters button { width:35px; height:35px; margin:2px; }
 </style>
 </head>
 
 <body>
 
-<header>
-<h1>Cowboy Pendu Multijoueur 🤠</h1>
-</header>
+<h1>Cowboy Pendu 🤠</h1>
 
 <div id="game">
 
 <div id="menu">
-    <input id="name" placeholder="Pseudo"><br><br>
-    <button onclick="createRoom()">Créer une partie</button><br><br>
-    <input id="roomInput" placeholder="Code de la partie">
-    <button onclick="joinRoom()">Rejoindre</button>
-    <p id="error"></p>
+  <input id="name" placeholder="Pseudo"><br><br>
+  <button onclick="createRoom()">Créer</button><br><br>
+  <input id="roomInput" placeholder="Code">
+  <button onclick="joinRoom()">Rejoindre</button>
 </div>
 
 <div id="room" style="display:none;">
-    <p id="roomCode"></p>
-    <div id="word"></div>
-    <div id="letters"></div>
-    <p id="status"></p>
-    <button onclick="location.reload()">Quitter</button>
+  <p id="roomCode"></p>
+  <div id="word">_ _ _ _</div>
+  <div id="letters"></div>
+  <p id="status"></p>
 </div>
 
 </div>
 
-<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 CONFIG FIREBASE
-const firebaseConfig = {
+/* 🔥 FIREBASE */
+firebase.initializeApp({
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
   databaseURL: "https://cowboy-entre-amis-default-rtdb.europe-west1.firebasedatabase.app",
@@ -55,93 +47,91 @@ const firebaseConfig = {
   storageBucket: "cowboy-entre-amis.appspot.com",
   messagingSenderId: "561482687512",
   appId: "1:561482687512:web:846729411c9158d3ea0f6d"
-};
+});
 
-firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// 🎮 VARIABLES
-const words = ["cowboy","cheval","lasso","saloon","pistolet"];
+/* 🎮 VARIABLES */
+const words = ["cowboy","cheval","lasso","saloon"];
 let roomId = "";
-let player = "";
+let localWord = "";
+let guessed = [];
+let attempts = 6;
 
-// 🆕 CRÉER PARTIE
+/* 🆕 CREATE */
 function createRoom() {
-    player = name.value.trim();
-    if (!player) return error.textContent = "Entre un pseudo";
+  roomId = Math.random().toString(36).substring(2,8).toUpperCase();
+  localWord = words[Math.floor(Math.random()*words.length)];
+  guessed = [];
+  attempts = 6;
 
-    roomId = Math.random().toString(36).substring(2,8).toUpperCase();
-    const word = words[Math.floor(Math.random()*words.length)];
+  db.ref("rooms/"+roomId).set({
+    word: localWord,
+    guessed: [],
+    attempts: 6
+  });
 
-    db.ref("rooms/" + roomId).set({
-        word: word,
-        guessed: [],
-        attempts: 6
-    }).then(enterRoom);
+  enterRoom();
 }
 
-// 🔑 REJOINDRE
+/* 🔑 JOIN */
 function joinRoom() {
-    player = name.value.trim();
-    roomId = roomInput.value.trim().toUpperCase();
-    if (!player || !roomId) return;
-
-    db.ref("rooms/" + roomId).once("value").then(snap => {
-        if (!snap.exists()) return error.textContent = "Partie introuvable";
-        enterRoom();
-    });
+  roomId = roomInput.value.toUpperCase();
+  db.ref("rooms/"+roomId).once("value").then(snap=>{
+    if(!snap.exists()) return alert("Partie introuvable");
+    enterRoom();
+  });
 }
 
-// 🚪 ENTRER DANS LA ROOM
+/* 🚪 ENTER */
 function enterRoom() {
-    menu.style.display = "none";
-    room.style.display = "block";
-    roomCode.textContent = "Code : " + roomId;
+  menu.style.display="none";
+  room.style.display="block";
+  roomCode.textContent="Code : "+roomId;
 
-    db.ref("rooms/" + roomId).on("value", snap => {
-        const data = snap.val();
-        if (!data) return;
+  // ⚠️ AFFICHE TOUJOURS UN MOT
+  renderWord();
 
-        // 🔤 MOT
-        let display = "";
-        for (let l of data.word) {
-            display += data.guessed.includes(l) ? l + " " : "_ ";
-        }
-        word.textContent = display;
+  db.ref("rooms/"+roomId).on("value", snap=>{
+    const d = snap.val();
+    if(!d) return;
+    localWord = d.word;
+    guessed = d.guessed || [];
+    attempts = d.attempts;
+    renderWord();
+  });
 
-        // 🧠 STATUT
-        if (data.attempts <= 0) {
-            status.textContent = "💀 Perdu ! Mot : " + data.word;
-        } else if (!display.includes("_")) {
-            status.textContent = "🎉 Gagné !";
-        } else {
-            status.textContent = "Essais restants : " + data.attempts;
-        }
+  renderLetters();
+}
 
-        // 🔘 LETTRES
-        letters.innerHTML = "";
-        "abcdefghijklmnopqrstuvwxyz".split("").forEach(letter => {
-            const btn = document.createElement("button");
-            btn.textContent = letter;
-            btn.disabled = data.guessed.includes(letter) || data.attempts <= 0;
+/* 🔤 MOT */
+function renderWord() {
+  let out="";
+  for(let l of localWord){
+    out += guessed.includes(l) ? l+" " : "_ ";
+  }
+  word.textContent = out || "_ _ _ _";
+  status.textContent = "Essais : "+attempts;
+}
 
-            btn.onclick = () => {
-                if (data.guessed.includes(letter)) return;
-
-                const guessed = [...data.guessed, letter];
-                const attempts = data.word.includes(letter)
-                    ? data.attempts
-                    : data.attempts - 1;
-
-                db.ref("rooms/" + roomId).update({
-                    guessed: guessed,
-                    attempts: attempts
-                });
-            };
-
-            letters.appendChild(btn);
-        });
-    });
+/* 🔘 LETTRES */
+function renderLetters() {
+  letters.innerHTML="";
+  "abcdefghijklmnopqrstuvwxyz".split("").forEach(l=>{
+    const b=document.createElement("button");
+    b.textContent=l;
+    b.disabled=guessed.includes(l)||attempts<=0;
+    b.onclick=()=>{
+      if(guessed.includes(l)) return;
+      guessed.push(l);
+      if(!localWord.includes(l)) attempts--;
+      db.ref("rooms/"+roomId).update({
+        guessed: guessed,
+        attempts: attempts
+      });
+    };
+    letters.appendChild(b);
+  });
 }
 </script>
 
