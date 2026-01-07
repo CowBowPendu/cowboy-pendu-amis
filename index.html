@@ -145,6 +145,7 @@ function joinRoom() {
             userRef = roomRef.child(`presence/${playerName}`);
             userRef.set(true);
             totalGames = data.totalGames || 3;
+            gamesPlayed = data.gamesPlayed || 0;
             joinRoomUI();
         } else {
             alert("Partie introuvable !");
@@ -267,12 +268,16 @@ function updateConnectedPlayers(presenceData){
 function checkGameOver(){
     if(!wordDisplay.textContent.includes("_") || attemptsLeft<=0){
         lettersDiv.innerHTML="";
-        replayBtn.style.display = "inline-block"; // 🔹 tous les joueurs voient le bouton
+        replayBtn.style.display = "inline-block"; // tous les joueurs voient le bouton
 
         // Mettre à jour le nombre de parties jouées
-        db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => (n||0)+1);
+        db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
+            const newVal = (n||0)+1;
+            gamesPlayed = newVal; // 🔹 on met à jour localement
+            return newVal;
+        });
 
-        if(gamesPlayed+1 >= totalGames){
+        if(gamesPlayed >= totalGames){
             statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
             replayBtn.style.display = "none"; // plus de replay
         }
