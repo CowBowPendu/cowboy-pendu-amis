@@ -33,8 +33,9 @@ body { font-family: Arial; background:#eee; text-align:center; }
   <div id="word">_ _ _ _</div>
   <div id="letters"></div>
   <p id="status"></p>
-  <button onclick="restartGame()">Rejouer</button>
+  <button id="restartBtn" onclick="askRestart()" style="display:none;">Rejouer</button>
   <div id="leaderboard"><h3>Classement</h3><ul id="scores"></ul></div>
+  <p id="restartInfo" style="font-style:italic;"></p>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -61,9 +62,7 @@ function createRoom(){
   player = document.getElementById("name").value.trim();
   if(!player) return document.getElementById("error").textContent="Entre un pseudo !";
 
-  // roomId en minuscules pour garantir le join
   roomId = Math.random().toString(36).substring(2,8).toLowerCase();
-
   localWord = words[Math.floor(Math.random()*words.length)];
   guessed=[]; attempts=6; turnIndex=0;
 
@@ -72,7 +71,8 @@ function createRoom(){
     guessed: [],
     attempts: attempts,
     players: {[player]:0},
-    turn: 0
+    turn: 0,
+    restartRequests: {} // pour double confirmation
   };
 
   db.ref("rooms/"+roomId).set(data)
@@ -83,7 +83,7 @@ function createRoom(){
 // 🔹 Rejoindre une partie
 function joinRoom(){
   player = document.getElementById("name").value.trim();
-  roomId = document.getElementById("roomInput").value.trim().toLowerCase(); // conversion automatique en minuscules
+  roomId = document.getElementById("roomInput").value.trim().toLowerCase();
   if(!player||!roomId) return document.getElementById("error").textContent="Pseudo ou code manquant !";
 
   db.ref("rooms/"+roomId).once("value").then(snap=>{
@@ -111,19 +111,31 @@ function enterRoom(){
     players = Object.keys(d.players||{});
     turnIndex = d.turn||0;
     renderWord(); renderLetters(); renderLeaderboard(d.players||{}); renderTurn();
+    handleRestart(d.restartRequests || {});
   });
 }
 
-// 🔹 Affichage du mot
+// 🔹 Affichage du mot et bouton Rejouer
 function renderWord(){
   let out="";
   for(let l of localWord){
     out += guessed.includes(l)?l+" ":"_ ";
   }
   document.getElementById("word").textContent = out;
-  if(attempts<=0) document.getElementById("status").textContent="💀 Perdu ! Mot : "+localWord;
-  else if(!out.includes("_")) document.getElementById("status").textContent="🎉 Gagné !";
-  else document.getElementById("status").textContent="Essais : "+attempts;
+
+  const restartBtn = document.getElementById("restartBtn");
+
+  if(attempts<=0){
+    document.getElementById("status").textContent="💀 Perdu ! Mot : "+localWord;
+    restartBtn.style.display = "inline-block";
+  }
+  else if(!out.includes("_")){
+    document.getElementById("status").textContent="🎉 Gagné !";
+    restartBtn.style.display = "inline-block";
+  } else {
+    document.getElementById("status").textContent="Essais : "+attempts;
+    restartBtn.style.display = "none";
+  }
 }
 
 // 🔹 Lettres
@@ -166,11 +178,33 @@ function renderTurn(){
   document.getElementById("turn").textContent="Tour de : "+currentPlayer+(currentPlayer===player?" (C'est votre tour !)":"");
 }
 
-// 🔹 Rejouer
-function restartGame(){
-  localWord = words[Math.floor(Math.random()*words.length)];
-  guessed=[]; attempts=6; turnIndex=0;
-  db.ref("rooms/"+roomId).update({word:localWord, guessed:[], attempts:6, turn:0});
+// 🔹 Rejouer : demande au serveur / double confirmation
+function askRestart(){
+  const updates = {};
+  updates["restartRequests/"+player] = true;
+  db.ref("rooms/"+roomId).update(updates);
+}
+
+// 🔹 Gérer l’état des demandes de rejouer
+function handleRestart(restartRequests){
+  const restartInfo = document.getElementById("restartInfo");
+  const nbPlayers = players.length;
+  const nbReady = Object.keys(restartRequests).length;
+
+  if(nbReady === 0){
+    restartInfo.textContent = "";
+  } else {
+    restartInfo.textContent = `Rejouer demandé : ${nbReady} / ${nbPlayers} joueurs`;
+  }
+
+  if(nbReady === nbPlayers && nbPlayers>0){
+    // tous ont demandé → reset la partie
+    localWord = words[Math.floor(Math.random()*words.length)];
+    guessed=[]; attempts=6; turnIndex=0;
+    db.ref("rooms/"+roomId).update({word:localWord, guessed:[], attempts:6, turn:0, restartRequests:{}});
+    document.getElementById("restartBtn").style.display = "none";
+    restartInfo.textContent = "";
+  }
 }
 </script>
 
