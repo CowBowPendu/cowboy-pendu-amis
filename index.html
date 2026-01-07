@@ -267,10 +267,10 @@ function updateConnectedPlayers(presenceData){
 function checkGameOver(){
     if(!wordDisplay.textContent.includes("_") || attemptsLeft <= 0){
         lettersDiv.innerHTML = "";
-        // bouton visible pour tous
         replayBtn.style.display = "inline-block";
-        statusDiv.textContent = (!wordDisplay.textContent.includes("_")) ?
-            "🎉 Le mot a été deviné !" : `💀 Perdu ! Le mot était "${currentWord}"`;
+        statusDiv.textContent = (!wordDisplay.textContent.includes("_"))
+            ? "🎉 Le mot a été deviné !"
+            : `💀 Perdu ! Le mot était "${currentWord}"`;
     }
 }
 
@@ -326,4 +326,5 @@ function restartGame(){
 </script>
 </body>
 </html>
+
 
