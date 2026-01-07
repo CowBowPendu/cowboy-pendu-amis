@@ -192,7 +192,10 @@ function guessLetter(letter){
 
         let updatedLetters = [...game.guessedLetters, letter];
         let updatedAttempts = game.attemptsLeft;
-        if(!game.currentWord.includes(letter)) { updatedAttempts--; soundWrong.play(); }
+        if(!game.currentWord.includes(letter)) { 
+            updatedAttempts--; 
+            soundWrong.play(); 
+        }
 
         let nextTurn = (game.turnIndex + 1) % players.length;
         let gameOver = false;
@@ -200,14 +203,23 @@ function guessLetter(letter){
             gameOver = true;
         }
 
+        // --- Met à jour Firebase ---
         db.ref("game").update({
             guessedLetters: updatedLetters,
             attemptsLeft: updatedAttempts,
             turnIndex: nextTurn,
             gameOver: gameOver
+        }).then(()=>{
+            // --- Met à jour la variable locale et l'affichage immédiatement ---
+            guessedLetters = updatedLetters;
+            attemptsLeft = updatedAttempts;
+            currentWord = game.currentWord;
+            displayWord();
+            drawHangman(maxAttempts - attemptsLeft);
         });
     });
 }
+
 
 function generateLetterButtons(){
     lettersDiv.innerHTML="";
@@ -324,3 +336,4 @@ updateLeaderboard();
 
 </body>
 </html>
+
