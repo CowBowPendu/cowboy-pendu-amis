@@ -25,7 +25,7 @@ button:hover { opacity:0.8;}
 <body>
 
 <header>
-<h1>Cowboy Pendu Multijoueur Privé 🤠</h1>
+<h1>Cowboy Pendu Multijoueur 🤠</h1>
 </header>
 
 <main>
@@ -45,6 +45,7 @@ button:hover { opacity:0.8;}
         <p id="turn-info"></p>
         <div id="notifications"></div>
         <button onclick="leaveRoom()">Quitter la partie</button>
+        <button id="replay-btn" style="display:none;" onclick="requestReplay()">Rejouer</button>
     </div>
 </div>
 
@@ -61,7 +62,6 @@ button:hover { opacity:0.8;}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-<!-- 🔹 SCRIPT JEU -->
 <script>
 // 🔹 CONFIGURATION FIREBASE
 const firebaseConfig = {
@@ -86,6 +86,7 @@ let attemptsLeft = 6;
 let players = [];
 let turn = 0;
 let userRef = null;
+let replayRequests = {}; // pour le bouton Rejouer
 
 // 🔹 ÉLÉMENTS UI
 const wordDisplay = document.getElementById("word-display");
@@ -98,6 +99,7 @@ const currentRoomP = document.getElementById("current-room");
 const connectedPlayersUL = document.getElementById("connected-players");
 const notificationsDiv = document.getElementById("notifications");
 const errorMessageP = document.getElementById("error-message");
+const replayBtn = document.getElementById("replay-btn");
 
 // 🔹 CRÉATION / REJOINDRE
 function generateRoomId(){ return Math.random().toString(36).substring(2,8).toUpperCase(); }
@@ -115,7 +117,8 @@ function createRoom() {
         guessedLetters: {},
         attemptsLeft: attemptsLeft,
         turn: 0,
-        presence: {[playerName]: true}
+        presence: {[playerName]: true},
+        replayRequests: {}
     });
     userRef = db.ref(`rooms/${roomId}/presence/${playerName}`);
     userRef.set(true);
@@ -157,6 +160,7 @@ function joinRoomUI() {
     roomInfoDiv.style.display="block";
     currentRoomP.textContent="Code de la partie : " + roomId;
     listenRoom();
+    listenReplayRequests();
 }
 
 // 🔹 ÉCOUTE FIREBASE
@@ -260,16 +264,51 @@ function updateConnectedPlayers(presenceData){
     }
 }
 
+// 🔹 BOUTON REJOUER
 function checkGameOver(){
     if(!wordDisplay.textContent.includes("_")){
         statusDiv.textContent="🎉 Le mot a été deviné !";
         lettersDiv.innerHTML="";
+        showReplayButton();
     } else if(attemptsLeft<=0){
         statusDiv.textContent=`💀 Perdu ! Le mot était "${currentWord}"`;
         lettersDiv.innerHTML="";
+        showReplayButton();
     }
 }
-</script>
 
+function showReplayButton(){
+    replayBtn.style.display = "inline-block";
+}
+
+function requestReplay(){
+    db.ref(`rooms/${roomId}/replayRequests/${playerName}`).set(true);
+}
+
+function listenReplayRequests(){
+    db.ref(`rooms/${roomId}/replayRequests`).on("value", snapshot => {
+        replayRequests = snapshot.val() || {};
+        const allPlayers = Object.keys(players);
+        const ready = allPlayers.every(p => replayRequests[p]);
+        if(ready && allPlayers.length>0){
+            restartGame();
+        }
+    });
+}
+
+function restartGame(){
+    const word = words[Math.floor(Math.random()*words.length)];
+    db.ref(`rooms/${roomId}`).update({
+        word: word,
+        guessedLetters: {},
+        attemptsLeft: 6,
+        turn: 0,
+        replayRequests: {}
+    });
+    replayBtn.style.display = "none";
+    guessedLetters = [];
+    attemptsLeft = 6;
+}
+</script>
 </body>
 </html>
