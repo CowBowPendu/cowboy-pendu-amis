@@ -1,242 +1,235 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Pendu Cowboy Multijoueur</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cowboy Pendu Multijoueur</title>
+    <style>
+        /* --- Styles de base --- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
 
-<!-- Firebase v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+        header {
+            background-color: #8b4513;
+            color: white;
+            padding: 20px;
+            width: 100%;
+            text-align: center;
+        }
 
-<style>
-body { font-family: Arial, sans-serif; background:#222; color:#fff; text-align:center; padding:20px; }
-input, button { padding:10px; margin:5px; font-size:16px; }
-button { cursor:pointer; }
-#wordDisplay { font-size:2em; letter-spacing:10px; margin:20px 0; }
-#letters button { width:40px; height:40px; margin:2px; }
-#playersList { margin-top:10px; }
-#replayButton { display:none; margin-top:15px; }
-</style>
+        main {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            margin: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        #game-container {
+            flex: 3;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        #scoreboard, #ads {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        #scoreboard {
+            background-color: #fff8dc;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        #ads {
+            background-color: #e6e6e6;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        #word-display {
+            font-size: 2em;
+            letter-spacing: 10px;
+            margin: 20px 0;
+        }
+
+        #letters button {
+            width: 40px;
+            height: 40px;
+            margin: 2px;
+        }
+    </style>
 </head>
-
 <body>
 
-<h1>🤠 Pendu Cowboy Multijoueur</h1>
+<header>
+    <h1>Cowboy Pendu Multijoueur 🤠</h1>
+</header>
 
-<div id="menu">
-    <input id="playerName" placeholder="Pseudo">
-    <input id="roomIdInput" placeholder="Code partie">
-    <input id="numGames" type="number" value="3" min="1">
-    <br>
-    <button onclick="createRoom()">Créer Partie</button>
-    <button onclick="joinRoom()">Rejoindre Partie</button>
-</div>
+<main>
+    <div id="game-container">
+        <div id="word-display">_ _ _ _ _</div>
+        <div id="letters"></div>
+        <div id="status"></div>
+        <button id="new-game">Nouvelle Partie</button>
+        <p id="turn-info"></p>
+    </div>
 
-<p id="status"></p>
-<p id="turnInfo"></p>
-<div id="wordDisplay">_ _ _ _ _</div>
-<div id="letters"></div>
-<div id="playersList"></div>
-<button id="replayButton" onclick="requestReplay()">Demander Rejouer</button>
+    <div id="scoreboard">
+        <h2>Classement</h2>
+        <ul id="leaderboard">
+            <!-- Scores des joueurs -->
+        </ul>
+    </div>
+
+    <div id="ads">
+        <h3>Publicités / Dons</h3>
+        <button onclick="alert('Merci pour le soutien !')">Faire un don</button>
+        <p>Annonce sponsorisée ici</p>
+    </div>
+</main>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-/* ================= FIREBASE CONFIG ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
-  authDomain: "cowboy-entre-amis.firebaseapp.com",
-  databaseURL: "https://cowboy-entre-amis-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cowboy-entre-amis",
-  storageBucket: "cowboy-entre-amis.firebasestorage.app",
-  messagingSenderId: "561482687512",
-  appId: "1:561482687512:web:846729411c9158d3ea0f6d"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    // --- Configuration Firebase (à remplacer par vos infos) ---
+    const firebaseConfig = {
+        apiKey: "VOTRE_API_KEY",
+        authDomain: "VOTRE_PROJECT.firebaseapp.com",
+        databaseURL: "https://VOTRE_PROJECT.firebaseio.com",
+        projectId: "VOTRE_PROJECT_ID",
+        storageBucket: "VOTRE_PROJECT.appspot.com",
+        messagingSenderId: "SENDER_ID",
+        appId: "APP_ID"
+    };
 
-/* ================= VARIABLES ================= */
-const words = ["cowboy","cheval","lasso","saloon"];
-let playerName = "";
-let roomId = "";
-let currentWord = "";
-let guessedLetters = [];
-let attemptsLeft = 6;
-let players = [];
-let turn = 0;
-let totalGames = 3;
-let gamesPlayed = 0;
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-/* ================= CRÉER PARTIE ================= */
-function createRoom() {
-    playerName = document.getElementById("playerName").value.trim();
-    totalGames = parseInt(document.getElementById("numGames").value) || 3;
-    if(!playerName){ alert("Pseudo obligatoire"); return; }
-    roomId = Math.random().toString(36).substring(2,8).toUpperCase();
-    currentWord = words[Math.floor(Math.random()*words.length)];
-    guessedLetters = [];
-    attemptsLeft = 6;
-    players = [playerName];
-    turn = 0;
-    gamesPlayed = 0;
+    // --- Jeu Cowboy Pendu ---
+    const words = ["cowboy", "cheval", "lasso", "saloon", "pistolet"];
+    let currentWord = "";
+    let guessedLetters = [];
+    let maxAttempts = 6;
+    let attemptsLeft = maxAttempts;
+    let player = prompt("Entrez votre pseudo :") || "Joueur";
+    let turn = 0; // Pour tour par tour
+    let players = [];
 
-    db.ref("rooms/"+roomId).set({
-        word: currentWord,
-        guessedLetters: {},
-        attemptsLeft: attemptsLeft,
-        players: { [playerName]: true },
-        scores: { [playerName]: 0 },
-        turn: 0,
-        totalGames: totalGames,
-        gamesPlayed: 0,
-        replayRequests: {}
-    }).then(()=>{
-        document.getElementById("status").innerText = "✅ Partie créée ! Code : "+roomId;
-        joinRoomUI();
-    }).catch(err=>alert("Erreur création: "+err.message));
-}
-
-/* ================= REJOINDRE PARTIE ================= */
-function joinRoom() {
-    playerName = document.getElementById("playerName").value.trim();
-    roomId = document.getElementById("roomIdInput").value.trim().toUpperCase();
-    if(!playerName || !roomId){ alert("Pseudo et code requis"); return; }
-    const roomRef = db.ref("rooms/"+roomId);
-    roomRef.once("value").then(snapshot=>{
-        if(!snapshot.exists()){ alert("Partie introuvable !"); return; }
-        const data = snapshot.val();
-        if(!data.players[playerName]){
-            roomRef.child("players/"+playerName).set(true);
-            roomRef.child("scores/"+playerName).set(0);
-        }
-        joinRoomUI();
-    }).catch(err=>alert("Erreur rejoindre: "+err.message));
-}
-
-/* ================= JOINDRE L'UI ================= */
-function joinRoomUI() {
-    document.getElementById("menu").style.display = "none";
-    listenRoom();
-}
-
-/* ================= ÉCOUTE FIREBASE ================= */
-function listenRoom() {
-    const roomRef = db.ref("rooms/"+roomId);
-    roomRef.on("value", snapshot=>{
-        const data = snapshot.val();
-        if(!data) return;
-        currentWord = data.word;
-        guessedLetters = Object.keys(data.guessedLetters || {});
-        attemptsLeft = data.attemptsLeft;
-        players = Object.keys(data.players || {});
-        turn = data.turn || 0;
-        totalGames = data.totalGames || 3;
-        gamesPlayed = data.gamesPlayed || 0;
-
-        updateWordDisplay();
-        generateLetterButtons();
-        updateTurnInfo();
-        updatePlayersList();
-
-        checkGameOver(data);
-    });
-}
-
-/* ================= AFFICHAGE MOT ================= */
-function updateWordDisplay() {
-    let display = "";
-    for(let l of currentWord) display += guessedLetters.includes(l)? l+" ":"_ ";
-    document.getElementById("wordDisplay").textContent = display.trim();
-}
-
-/* ================= BOUTONS LETTRES ================= */
-function generateLetterButtons() {
+    const wordDisplay = document.getElementById("word-display");
     const lettersDiv = document.getElementById("letters");
-    lettersDiv.innerHTML="";
-    const activePlayer = players[turn % players.length];
+    const statusDiv = document.getElementById("status");
+    const leaderboard = document.getElementById("leaderboard");
+    const turnInfo = document.getElementById("turn-info");
 
-    // TOUJOURS mettre à jour le mot pour tout le monde
-    updateWordDisplay();
-
-    // boutons seulement pour joueur actif
-    if(activePlayer!==playerName) return;
-
-    const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-    for(let letter of alphabet){
-        const btn = document.createElement("button");
-        btn.textContent = letter;
-        if(guessedLetters.includes(letter)) btn.disabled=true;
-        btn.onclick = ()=>{
-            guessedLetters.push(letter);
-            if(!currentWord.includes(letter)) attemptsLeft--;
-            db.ref("rooms/"+roomId+"/guessedLetters/"+letter).set(true);
-            db.ref("rooms/"+roomId+"/attemptsLeft").set(attemptsLeft);
-            db.ref("rooms/"+roomId+"/turn").set(turn+1);
-        };
-        lettersDiv.appendChild(btn);
+    function startGame() {
+        currentWord = words[Math.floor(Math.random() * words.length)];
+        guessedLetters = [];
+        attemptsLeft = maxAttempts;
+        displayWord();
+        generateLetterButtons();
+        statusDiv.textContent = `Vous avez ${attemptsLeft} essais restants.`;
     }
-}
 
-/* ================= INFO TOUR ================= */
-function updateTurnInfo(){
-    const activePlayer = players[turn % players.length];
-    document.getElementById("turnInfo").textContent = "Tour actuel: "+activePlayer + (activePlayer===playerName ? " (C'est votre tour!)":"");
-}
-
-/* ================= LISTE JOUEURS ================= */
-function updatePlayersList(){
-    db.ref("rooms/"+roomId+"/players").once("value").then(snap=>{
-        const data = snap.val() || {};
-        document.getElementById("playersList").textContent = "Joueurs: "+Object.keys(data).join(", ");
-    });
-}
-
-/* ================= CHECK FIN ================= */
-function checkGameOver(data){
-    const won = !document.getElementById("wordDisplay").textContent.includes("_");
-    const lost = attemptsLeft<=0;
-
-    if(won || lost){
-        if(won) alert("🎉 Mot trouvé !");
-        else alert("💀 Perdu ! Le mot était "+currentWord);
-
-        // mettre à jour score
-        db.ref("rooms/"+roomId+"/scores/"+playerName).transaction(val => (val||0)+(won?1:0));
-
-        // Afficher bouton Rejouer
-        document.getElementById("replayButton").style.display="inline-block";
-    }
-}
-
-/* ================= REJOUER ================= */
-function requestReplay(){
-    db.ref("rooms/"+roomId+"/replayRequests/"+playerName).set(true);
-    db.ref("rooms/"+roomId+"/replayRequests").once("value").then(snap=>{
-        const requests = snap.val() || {};
-        const allAgreed = players.every(p => requests[p]);
-        if(allAgreed){
-            startNextGame();
-        } else {
-            alert("En attente que tous les joueurs demandent de rejouer...");
+    function displayWord() {
+        let display = "";
+        for (let letter of currentWord) {
+            display += guessedLetters.includes(letter) ? letter + " " : "_ ";
         }
-    });
-}
+        wordDisplay.textContent = display.trim();
+    }
 
-function startNextGame(){
-    currentWord = words[Math.floor(Math.random()*words.length)];
-    guessedLetters = [];
-    attemptsLeft = 6;
-    turn = 0;
-    gamesPlayed++;
-    db.ref("rooms/"+roomId).update({
-        word: currentWord,
-        guessedLetters: {},
-        attemptsLeft: attemptsLeft,
-        turn: 0,
-        gamesPlayed: gamesPlayed,
-        replayRequests: {}
-    });
-    document.getElementById("replayButton").style.display="none";
-}
+    function generateLetterButtons() {
+        lettersDiv.innerHTML = "";
+        for (let c = 97; c <= 122; c++) {
+            const letter = String.fromCharCode(c);
+            const btn = document.createElement("button");
+            btn.textContent = letter;
+            btn.onclick = () => guessLetter(letter);
+            lettersDiv.appendChild(btn);
+        }
+    }
+
+    function guessLetter(letter) {
+        if (guessedLetters.includes(letter)) return;
+        guessedLetters.push(letter);
+
+        if (!currentWord.includes(letter)) {
+            attemptsLeft--;
+        }
+
+        displayWord();
+        statusDiv.textContent = `Il reste ${attemptsLeft} essais.`;
+
+        checkGameOver();
+        saveScore();
+    }
+
+    function checkGameOver() {
+        if (!wordDisplay.textContent.includes("_")) {
+            statusDiv.textContent = "🎉 Vous avez gagné !";
+        } else if (attemptsLeft <= 0) {
+            statusDiv.textContent = `💀 Perdu ! Le mot était "${currentWord}"`;
+        }
+    }
+
+    // --- Scores & Classement Firebase ---
+    function saveScore() {
+        const score = maxAttempts - attemptsLeft;
+        db.ref("scores/" + player).set(score);
+        updateLeaderboard();
+    }
+
+    function updateLeaderboard() {
+        db.ref("scores").once("value", snapshot => {
+            const data = snapshot.val() || {};
+            leaderboard.innerHTML = "";
+            const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]);
+            for (let [name, score] of sorted) {
+                const li = document.createElement("li");
+                li.textContent = `${name} : ${score} pts`;
+                leaderboard.appendChild(li);
+            }
+        });
+    }
+
+    // --- Gestion tour par tour (exemple simple) ---
+    function nextTurn() {
+        turn++;
+        turnInfo.textContent = `Tour du joueur ${players[turn % players.length]}`;
+    }
+
+    document.getElementById("new-game").onclick = startGame;
+
+    startGame();
+    updateLeaderboard();
 </script>
 
 </body>
