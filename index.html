@@ -195,25 +195,35 @@ function updateWordDisplay() {
 
 function generateLetterButtons() {
     lettersDiv.innerHTML="";
-    if(players[turn % players.length]!==playerName) return;
+    const activePlayer = players[turn % players.length];
+    if(activePlayer !== playerName) return;
+
     for(let c=97;c<=122;c++){
         const letter = String.fromCharCode(c);
         const btn=document.createElement("button");
         btn.textContent=letter;
-        btn.onclick=()=>guessLetter(letter);
+        // Désactiver si déjà deviné
+        if(guessedLetters.includes(letter)) btn.disabled = true;
+
+        btn.onclick = () => {
+            if(guessedLetters.includes(letter)) return; // Sécurité double clic
+            guessedLetters.push(letter); // Mise à jour locale immédiate
+            btn.disabled = true;
+
+            if(!currentWord.includes(letter)){
+                attemptsLeft--;
+            } else {
+                // Ajouter score
+                db.ref(`rooms/${roomId}/players/${playerName}`).transaction(val => (val||0)+1);
+            }
+
+            // Mettre à jour Firebase
+            db.ref(`rooms/${roomId}/guessedLetters`).set(guessedLetters);
+            db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
+            db.ref(`rooms/${roomId}/turn`).set(turn + 1);
+        };
         lettersDiv.appendChild(btn);
     }
-}
-
-function guessLetter(letter){
-    if(guessedLetters.includes(letter)) return;
-    guessedLetters.push(letter);
-    if(!currentWord.includes(letter)) attemptsLeft--;
-    else db.ref(`rooms/${roomId}/players/${playerName}`).transaction(val => (val||0)+1);
-
-    db.ref(`rooms/${roomId}/guessedLetters`).set(guessedLetters);
-    db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
-    db.ref(`rooms/${roomId}/turn`).set(turn + 1);
 }
 
 function updateTurnInfo() {
