@@ -59,7 +59,6 @@ button:hover { opacity:0.8;}
 
 </main>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -87,7 +86,6 @@ let attemptsLeft = 6;
 let players = [];
 let turn = 0;
 let userRef = null;
-let replayRequests = {};
 let totalGames = 3;
 let gamesPlayed = 0;
 
@@ -264,23 +262,13 @@ function updateConnectedPlayers(presenceData){
     }
 }
 
-// 🔹 BOUTON REJOUER ET MULTI-PARTIES
+// 🔹 FIN DE PARTIE ET REJOUER
 function checkGameOver(){
     if(!wordDisplay.textContent.includes("_") || attemptsLeft<=0){
         lettersDiv.innerHTML="";
-        replayBtn.style.display = "inline-block"; // tous les joueurs voient le bouton
-
-        // Mettre à jour le nombre de parties jouées
-        db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
-            const newVal = (n||0)+1;
-            gamesPlayed = newVal; // 🔹 on met à jour localement
-            return newVal;
-        });
-
-        if(gamesPlayed >= totalGames){
-            statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
-            replayBtn.style.display = "none"; // plus de replay
-        }
+        replayBtn.style.display = "inline-block"; // tous voient le bouton
+        statusDiv.textContent = (!wordDisplay.textContent.includes("_")) ?
+            "🎉 Le mot a été deviné !" : `💀 Perdu ! Le mot était "${currentWord}"`;
     }
 }
 
@@ -292,8 +280,21 @@ function listenReplayRequests(){
     db.ref(`rooms/${roomId}/replayRequests`).on("value", snapshot => {
         const replayRequests = snapshot.val() || {};
         const allReady = players.every(p => replayRequests[p]);
-        if(allReady && gamesPlayed < totalGames){
-            restartGame();
+
+        if(allReady){
+            // 🔹 tous ont cliqué → incrémente gamesPlayed
+            db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
+                const newVal = (n||0)+1;
+                gamesPlayed = newVal; // met à jour localement
+                return newVal;
+            }).then(() => {
+                if(gamesPlayed < totalGames){
+                    restartGame(); // recommence une partie
+                } else {
+                    statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
+                    replayBtn.style.display = "none";
+                }
+            });
         }
     });
 }
