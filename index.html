@@ -119,7 +119,7 @@ function createRoom() {
         attemptsLeft: 6,
         turn: 0,
         presence: {[playerName]: true},
-        replayRequests: {},
+        replayRequests: {[playerName]: false},
         totalGames: totalGames,
         gamesPlayed: 0,
         scores: {[playerName]: 0}
@@ -138,7 +138,8 @@ function joinRoom() {
             if(!data.players[playerName]){
                 data.players[playerName] = 0;
                 data.scores[playerName] = 0;
-                roomRef.update({players: data.players, scores: data.scores});
+                data.replayRequests[playerName] = false;
+                roomRef.update({players: data.players, scores: data.scores, replayRequests: data.replayRequests});
             }
             userRef = roomRef.child(`presence/${playerName}`);
             userRef.set(true);
@@ -279,23 +280,27 @@ function requestReplay(){
 function listenReplayRequests(){
     db.ref(`rooms/${roomId}/replayRequests`).on("value", snapshot => {
         const replayRequests = snapshot.val() || {};
-        const allReady = players.every(p => replayRequests[p]);
+        // Vérifie la liste exacte des joueurs dans la room
+        db.ref("rooms/" + roomId + "/players").once("value").then(playersSnap => {
+            const playersList = Object.keys(playersSnap.val() || {});
+            const allReady = playersList.every(p => replayRequests[p]);
 
-        if(allReady){
-            // 🔹 tous ont cliqué → incrémente gamesPlayed
-            db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
-                const newVal = (n||0)+1;
-                gamesPlayed = newVal; // met à jour localement
-                return newVal;
-            }).then(() => {
-                if(gamesPlayed < totalGames){
-                    restartGame(); // recommence une partie
-                } else {
-                    statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
-                    replayBtn.style.display = "none";
-                }
-            });
-        }
+            if(allReady){
+                // 🔹 tous ont cliqué → incrémente gamesPlayed
+                db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
+                    const newVal = (n||0)+1;
+                    gamesPlayed = newVal; // met à jour localement
+                    return newVal;
+                }).then(() => {
+                    if(gamesPlayed < totalGames){
+                        restartGame(); // recommence une partie
+                    } else {
+                        statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
+                        replayBtn.style.display = "none";
+                    }
+                });
+            }
+        });
     });
 }
 
