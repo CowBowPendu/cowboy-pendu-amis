@@ -50,7 +50,7 @@ button:hover {opacity:0.8;}
   <div id="players-list"></div>
   <h3>Classement :</h3>
   <ul id="leaderboard"></ul>
-  <button id="new-game">Nouvelle Partie</button>
+  <button id="new-game">Retour au menu</button>
 </div>
 </main>
 
@@ -202,46 +202,83 @@ document.getElementById("join-game").onclick=()=>{
   });
 };
 
-// --- Listener Firebase ---
-db.ref(`games`).on("value", snap=>{
+// --- Listener Firebase sur la partie ---
+function attachGameListener(){
   if(!gameCode) return;
-  const gameSnap = snap.val()[gameCode];
-  if(!gameSnap) return;
+  db.ref(`games/${gameCode}`).on("value", snap=>{
+    const gameSnap = snap.val();
+    if(!gameSnap) return;
 
-  currentWord = gameSnap.currentWord;
-  guessedLetters = gameSnap.guessedLetters;
-  attemptsLeft = gameSnap.attemptsLeft;
-  turnIndex = gameSnap.turnIndex;
-  displayWord();
-  drawHangman(maxAttempts - attemptsLeft);
+    currentWord = gameSnap.currentWord;
+    guessedLetters = gameSnap.guessedLetters;
+    attemptsLeft = gameSnap.attemptsLeft;
+    turnIndex = gameSnap.turnIndex;
+    displayWord();
+    drawHangman(maxAttempts - attemptsLeft);
 
-  // Joueurs
-  players = gameSnap.players || [];
-  playersListDiv.innerHTML="";
-  players.forEach(p=>{
-    const span=document.createElement("span");
-    span.textContent=p.name; span.className="player-label"; span.style.backgroundColor=p.color;
-    playersListDiv.appendChild(span);
+    // Joueurs
+    players = gameSnap.players || [];
+    playersListDiv.innerHTML="";
+    players.forEach(p=>{
+      const span=document.createElement("span");
+      span.textContent=p.name; span.className="player-label"; span.style.backgroundColor=p.color;
+      playersListDiv.appendChild(span);
+    });
+
+    const currentPlayer = players[turnIndex];
+    turnInfo.textContent = currentPlayer ? `Tour du joueur ${currentPlayer.name}` : "";
+
+    lettersDiv.querySelectorAll("button").forEach(b=>{
+      b.disabled = guessedLetters.includes(b.textContent) || gameSnap.gameOver || !currentPlayer || currentPlayer.name!==player;
+    });
+
+    if(gameSnap.gameOver){
+      if(attemptsLeft<=0){ soundLose.play(); statusDiv.textContent=`💀 Partie terminée, le mot était "${currentWord}"`; }
+      else { soundWin.play(); statusDiv.textContent=`🎉 Partie terminée, le mot a été trouvé !`; }
+    }
   });
+}
 
-  const currentPlayer = players[turnIndex];
-  turnInfo.textContent = currentPlayer ? `Tour du joueur ${currentPlayer.name}` : "";
-
-  lettersDiv.querySelectorAll("button").forEach(b=>{
-    b.disabled = guessedLetters.includes(b.textContent) || gameSnap.gameOver || !currentPlayer || currentPlayer.name!==player;
-  });
-
-  if(gameSnap.gameOver){
-    if(attemptsLeft<=0){ soundLose.play(); statusDiv.textContent=`💀 Partie terminée, le mot était "${currentWord}"`; }
-    else { soundWin.play(); statusDiv.textContent=`🎉 Partie terminée, le mot a été trouvé !`; }
-  }
-});
-
-// --- Nouvelle Partie ---
-document.getElementById("new-game").onclick=()=>{
+// --- Attacher listener après création ou rejoindre ---
+document.getElementById("create-game").onclick = ()=>{ 
+  player = document.getElementById("player-name").value||"Joueur";
+  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
   gameCode = generateGameCode();
-  document.getElementById("player-name").value = player;
-  document.getElementById("join-code").value = "";
+  currentWord = words[Math.floor(Math.random()*words.length)];
+  attemptsLeft = maxAttempts;
+  guessedLetters=[];
+  db.ref(`games/${gameCode}`).set({
+    currentWord: currentWord,
+    guessedLetters: guessedLetters,
+    attemptsLeft: attemptsLeft,
+    turnIndex:0,
+    gameOver:false,
+    players:[{name:player,color:playerColor}]
+  });
+  gameCodeDisplay.textContent = "Code de la partie : " + gameCode;
+  homeDiv.style.display="none"; gameDiv.style.display="block"; generateLetterButtons();
+  attachGameListener();
+};
+
+document.getElementById("join-game").onclick = ()=>{
+  player = document.getElementById("player-name").value||"Joueur";
+  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
+  gameCode = joinCodeInput.value.trim();
+  if(!gameCode){alert("Entrez un code valide"); return;}
+  db.ref(`games/${gameCode}/players`).once("value").then(snap=>{
+    players = snap.val()||[];
+    if(!players.some(p=>p.name===player)){
+      players.push({name:player,color:playerColor});
+      db.ref(`games/${gameCode}/players`).set(players);
+    }
+    homeDiv.style.display="none"; gameDiv.style.display="block"; generateLetterButtons();
+    attachGameListener();
+  });
+};
+
+// --- Retour au menu ---
+document.getElementById("new-game").onclick=()=>{
+  gameCode = "";
   homeDiv.style.display="block";
   gameDiv.style.display="none";
   gameCodeDisplay.textContent="";
