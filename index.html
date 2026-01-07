@@ -153,7 +153,13 @@ function generateLetterButtons() {
     const lettersDiv = document.getElementById("letters");
     lettersDiv.innerHTML="";
     const activePlayer = players[turn % players.length];
+
+    // TOUJOURS mettre à jour le mot pour tout le monde
+    updateWordDisplay();
+
+    // boutons seulement pour joueur actif
     if(activePlayer!==playerName) return;
+
     const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
     for(let letter of alphabet){
         const btn = document.createElement("button");
@@ -190,11 +196,13 @@ function checkGameOver(data){
     const lost = attemptsLeft<=0;
 
     if(won || lost){
-        if(won) alert("🎉 Mot trouvé !"); 
+        if(won) alert("🎉 Mot trouvé !");
         else alert("💀 Perdu ! Le mot était "+currentWord);
-        // Mettre à jour score
+
+        // mettre à jour score
         db.ref("rooms/"+roomId+"/scores/"+playerName).transaction(val => (val||0)+(won?1:0));
-        // Afficher bouton Rejouer pour tous
+
+        // Afficher bouton Rejouer
         document.getElementById("replayButton").style.display="inline-block";
     }
 }
