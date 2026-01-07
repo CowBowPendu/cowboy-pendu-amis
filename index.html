@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cowboy Pendu Multijoueur Privé</title>
+<title>Cowboy Pendu Multijoueur</title>
 <style>
 body { font-family: Arial, sans-serif; background:#f0f0f0; margin:0; padding:0; display:flex; flex-direction:column; align-items:center;}
 header { background:#8b4513; color:white; padding:20px; width:100%; text-align:center;}
@@ -32,6 +32,7 @@ button:hover { opacity:0.8;}
 <div id="game-container">
     <div id="join-create">
         <input type="text" id="player-name" placeholder="Votre pseudo">
+        <input type="number" id="num-games" placeholder="Nombre de parties" min="1" value="3">
         <button onclick="createRoom()">Créer Partie</button>
         <input type="text" id="room-id" placeholder="Code de la partie">
         <button onclick="joinRoom()">Rejoindre Partie</button>
@@ -50,7 +51,7 @@ button:hover { opacity:0.8;}
 </div>
 
 <div id="scoreboard">
-<h2>Classement</h2>
+<h2>Score Global</h2>
 <ul id="leaderboard"></ul>
 <h3>Joueurs connectés</h3>
 <ul id="connected-players"></ul>
@@ -86,6 +87,9 @@ let attemptsLeft = 6;
 let players = [];
 let turn = 0;
 let userRef = null;
+let replayRequests = {};
+let totalGames = 3;
+let gamesPlayed = 0;
 
 // 🔹 ÉLÉMENTS
 const wordDisplay = document.getElementById("word-display");
@@ -106,7 +110,7 @@ function generateRoomId(){ return Math.random().toString(36).substring(2,8).toUp
 function createRoom() {
     playerName = document.getElementById("player-name").value.trim();
     if(!playerName){ errorMessageP.textContent="Veuillez entrer un pseudo !"; return; }
-    errorMessageP.textContent="";
+    totalGames = parseInt(document.getElementById("num-games").value) || 3;
     roomId = generateRoomId();
     const word = words[Math.floor(Math.random()*words.length)];
     
@@ -117,14 +121,16 @@ function createRoom() {
         attemptsLeft: 6,
         turn: 0,
         presence: {[playerName]: true},
-        replayRequests: {}
+        replayRequests: {},
+        totalGames: totalGames,
+        gamesPlayed: 0,
+        scores: {[playerName]: 0}
     }).then(() => joinRoomUI());
 }
 
 function joinRoom() {
     playerName = document.getElementById("player-name").value.trim();
     if(!playerName){ errorMessageP.textContent="Veuillez entrer un pseudo !"; return; }
-    errorMessageP.textContent="";
     roomId = document.getElementById("room-id").value.toUpperCase();
 
     const roomRef = db.ref("rooms/" + roomId);
@@ -133,10 +139,12 @@ function joinRoom() {
             const data = snapshot.val();
             if(!data.players[playerName]){
                 data.players[playerName] = 0;
-                roomRef.child("players").set(data.players);
+                data.scores[playerName] = 0;
+                roomRef.update({players: data.players, scores: data.scores});
             }
             userRef = roomRef.child(`presence/${playerName}`);
-            userRef.set(true); 
+            userRef.set(true);
+            totalGames = data.totalGames || 3;
             joinRoomUI();
         } else {
             alert("Partie introuvable !");
@@ -171,11 +179,12 @@ function listenRoom() {
         attemptsLeft = data.attemptsLeft;
         players = Object.keys(data.players || {});
         turn = data.turn || 0;
+        gamesPlayed = data.gamesPlayed || 0;
 
         updateWordDisplay();
         generateLetterButtons();
         updateTurnInfo();
-        updateLeaderboard(data.players);
+        updateLeaderboard(data.scores);
 
         updateConnectedPlayers(data.presence || {});
         notificationsDiv.textContent = "Joueurs présents : " + Object.keys(data.presence || {}).join(", ");
@@ -190,7 +199,7 @@ function updateWordDisplay() {
     for(let l of currentWord) display += guessedLetters.includes(l)? l+" ":"_ ";
     wordDisplay.textContent = display.trim();
     const activePlayer = players[turn % players.length] || "…";
-    statusDiv.textContent=`Joueur actif : ${activePlayer} | Il reste ${attemptsLeft} essais`;
+    statusDiv.textContent=`Joueur actif : ${activePlayer} | Il reste ${attemptsLeft} essais | Partie ${gamesPlayed+1}/${totalGames}`;
 }
 
 function generateLetterButtons() {
@@ -206,7 +215,6 @@ function generateLetterButtons() {
         if(guessedLetters.includes(letter)) btn.disabled = true;
 
         btn.onclick = () => {
-            if(guessedLetters.includes(letter)) return;
             guessedLetters.push(letter);
             btn.disabled = true;
             updateWordDisplay();
@@ -216,7 +224,7 @@ function generateLetterButtons() {
             db.ref(`rooms/${roomId}/guessedLetters`).set(guessedObj);
 
             if(currentWord.includes(letter)){
-                db.ref(`rooms/${roomId}/players/${playerName}`).transaction(val => (val||0)+1);
+                db.ref(`rooms/${roomId}/scores/${playerName}`).transaction(val => (val||0)+1);
             } else {
                 attemptsLeft--;
                 db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
@@ -234,9 +242,9 @@ function updateTurnInfo() {
     if(activePlayer===playerName) turnInfo.textContent+=" (C'est votre tour !)";
 }
 
-function updateLeaderboard(playersData){
+function updateLeaderboard(scores){
     leaderboard.innerHTML="";
-    const sorted = Object.entries(playersData||{}).sort((a,b)=>b[1]-a[1]);
+    const sorted = Object.entries(scores||{}).sort((a,b)=>b[1]-a[1]);
     for(let [name, score] of sorted){
         const li=document.createElement("li");
         li.textContent=`${name} : ${score} pts`;
@@ -255,16 +263,19 @@ function updateConnectedPlayers(presenceData){
     }
 }
 
-// 🔹 BOUTON REJOUER
+// 🔹 BOUTON REJOUER ET MULTI-PARTIES
 function checkGameOver(){
-    if(!wordDisplay.textContent.includes("_")){
-        statusDiv.textContent="🎉 Le mot a été deviné !";
+    if(!wordDisplay.textContent.includes("_") || attemptsLeft<=0){
         lettersDiv.innerHTML="";
-        replayBtn.style.display="inline-block";
-    } else if(attemptsLeft<=0){
-        statusDiv.textContent=`💀 Perdu ! Le mot était "${currentWord}"`;
-        lettersDiv.innerHTML="";
-        replayBtn.style.display="inline-block";
+        replayBtn.style.display = "inline-block"; // 🔹 tous les joueurs voient le bouton
+
+        // Mettre à jour le nombre de parties jouées
+        db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => (n||0)+1);
+
+        if(gamesPlayed+1 >= totalGames){
+            statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
+            replayBtn.style.display = "none"; // plus de replay
+        }
     }
 }
 
@@ -275,8 +286,8 @@ function requestReplay(){
 function listenReplayRequests(){
     db.ref(`rooms/${roomId}/replayRequests`).on("value", snapshot => {
         const replayRequests = snapshot.val() || {};
-        const ready = players.every(p => replayRequests[p]);
-        if(ready && players.length>0){
+        const allReady = players.every(p => replayRequests[p]);
+        if(allReady && gamesPlayed < totalGames){
             restartGame();
         }
     });
