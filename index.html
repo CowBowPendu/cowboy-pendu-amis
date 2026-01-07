@@ -94,9 +94,8 @@ const gameCodeDisplay = document.getElementById("game-code-display");
 const joinCodeInput = document.getElementById("join-code");
 
 // --- Sons ---
-const soundWrong = new Audio("https://actions.google.com/sounds/v1/impacts/clang_and_whoosh.ogg");
-const soundWin = new Audio("https://actions.google.com/sounds/v1/cartoon/clang.ogg");
 const soundLose = new Audio("https://actions.google.com/sounds/v1/cartoon/metal_clang.ogg");
+const soundWin = new Audio("https://actions.google.com/sounds/v1/cartoon/clang.ogg");
 
 // --- Dessin pendu ---
 function drawHangman(errors){
@@ -158,51 +157,7 @@ function generateGameCode(length=6){
   return code;
 }
 
-// --- Créer Partie ---
-document.getElementById("create-game").onclick=()=>{
-  player = document.getElementById("player-name").value||"Joueur";
-  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
-  gameCode = generateGameCode();
-
-  currentWord = words[Math.floor(Math.random()*words.length)];
-  attemptsLeft = maxAttempts;
-  guessedLetters=[];
-
-  db.ref(`games/${gameCode}`).set({
-    currentWord: currentWord,
-    guessedLetters: guessedLetters,
-    attemptsLeft: attemptsLeft,
-    turnIndex:0,
-    gameOver:false,
-    players:[{name:player,color:playerColor}]
-  });
-
-  gameCodeDisplay.textContent = "Code de la partie : " + gameCode;
-  homeDiv.style.display="none";
-  gameDiv.style.display="block";
-  generateLetterButtons();
-};
-
-// --- Rejoindre Partie ---
-document.getElementById("join-game").onclick=()=>{
-  player = document.getElementById("player-name").value||"Joueur";
-  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
-  gameCode = joinCodeInput.value.trim();
-  if(!gameCode){alert("Entrez un code valide"); return;}
-
-  db.ref(`games/${gameCode}/players`).once("value").then(snap=>{
-    players = snap.val()||[];
-    if(!players.some(p=>p.name===player)){
-      players.push({name:player,color:playerColor});
-      db.ref(`games/${gameCode}/players`).set(players);
-    }
-    homeDiv.style.display="none";
-    gameDiv.style.display="block";
-    generateLetterButtons();
-  });
-};
-
-// --- Listener Firebase sur la partie ---
+// --- Listener Firebase ---
 function attachGameListener(){
   if(!gameCode) return;
   db.ref(`games/${gameCode}`).on("value", snap=>{
@@ -239,39 +194,50 @@ function attachGameListener(){
   });
 }
 
-// --- Attacher listener après création ou rejoindre ---
-document.getElementById("create-game").onclick = ()=>{ 
-  player = document.getElementById("player-name").value||"Joueur";
-  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
+// --- Créer Partie ---
+document.getElementById("create-game").onclick = () => {
+  player = document.getElementById("player-name").value || "Joueur";
+  playerColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
+
   gameCode = generateGameCode();
+  gameCodeDisplay.textContent = "Code de la partie : " + gameCode;
+
   currentWord = words[Math.floor(Math.random()*words.length)];
   attemptsLeft = maxAttempts;
-  guessedLetters=[];
+  guessedLetters = [];
+
   db.ref(`games/${gameCode}`).set({
     currentWord: currentWord,
     guessedLetters: guessedLetters,
     attemptsLeft: attemptsLeft,
-    turnIndex:0,
-    gameOver:false,
-    players:[{name:player,color:playerColor}]
+    turnIndex: 0,
+    gameOver: false,
+    players: [{ name: player, color: playerColor }]
+  }).then(()=>{
+    homeDiv.style.display="none";
+    gameDiv.style.display="block";
+    generateLetterButtons();
+    attachGameListener();
   });
-  gameCodeDisplay.textContent = "Code de la partie : " + gameCode;
-  homeDiv.style.display="none"; gameDiv.style.display="block"; generateLetterButtons();
-  attachGameListener();
 };
 
-document.getElementById("join-game").onclick = ()=>{
-  player = document.getElementById("player-name").value||"Joueur";
-  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
+// --- Rejoindre Partie ---
+document.getElementById("join-game").onclick = () => {
+  player = document.getElementById("player-name").value || "Joueur";
+  playerColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
   gameCode = joinCodeInput.value.trim();
   if(!gameCode){alert("Entrez un code valide"); return;}
+
   db.ref(`games/${gameCode}/players`).once("value").then(snap=>{
-    players = snap.val()||[];
+    players = snap.val() || [];
     if(!players.some(p=>p.name===player)){
       players.push({name:player,color:playerColor});
       db.ref(`games/${gameCode}/players`).set(players);
     }
-    homeDiv.style.display="none"; gameDiv.style.display="block"; generateLetterButtons();
+
+    homeDiv.style.display="none";
+    gameDiv.style.display="block";
+    generateLetterButtons();
     attachGameListener();
   });
 };
