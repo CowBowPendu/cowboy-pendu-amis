@@ -1,0 +1,145 @@
+/* --- GLOBAL --- */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    background: url('https://images.unsplash.com/photo-1516302350523-80129d1d3318?fit=crop&w=1400&q=80') no-repeat center center fixed;
+    background-size: cover;
+    color: #fff8dc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.game-container {
+    background-color: rgba(80, 40, 20, 0.9);
+    padding: 20px;
+    border-radius: 20px;
+    text-align: center;
+    width: 90%;
+    max-width: 700px;
+    box-shadow: 0 0 30px #000;
+}
+
+h1 {
+    font-family: 'Western', cursive;
+    color: #ffd700;
+    margin-bottom: 20px;
+}
+
+/* --- SCENE DU PENDU --- */
+#scene {
+    position: relative;
+    width: 200px;
+    height: 300px;
+    margin: 0 auto 20px auto;
+}
+
+#hangman {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.rope {
+    width: 4px;
+    height: 60px;
+    background-color: #654321;
+    margin: 0 auto;
+}
+
+.cowboy {
+    position: relative;
+    width: 40px;
+    height: 120px;
+    margin: 0 auto;
+    opacity: 0; /* apparaît progressivement */
+}
+
+.cowboy .head {
+    width: 30px;
+    height: 30px;
+    background-color: #f5d6b3;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+.cowboy .body {
+    width: 10px;
+    height: 50px;
+    background-color: #8b4513;
+    margin: 0 auto;
+}
+
+.cowboy .arms {
+    width: 50px;
+    height: 10px;
+    background-color: #8b4513;
+    position: absolute;
+    top: 30px;
+    left: -5px;
+}
+
+.cowboy .legs {
+    width: 50px;
+    height: 10px;
+    background-color: #8b4513;
+    position: absolute;
+    top: 80px;
+    left: -5px;
+}
+
+#ground {
+    width: 100%;
+    height: 10px;
+    background-color: #654321;
+    position: absolute;
+    bottom: 0;
+}
+
+/* --- MOT À DEVINER --- */
+#word-display {
+    font-size: 2em;
+    letter-spacing: 10px;
+    margin: 20px 0;
+}
+
+/* --- BOUTONS --- */
+#letter-buttons button {
+    margin: 5px;
+    padding: 10px 15px;
+    font-size: 1em;
+    background-color: #d2691e;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+#letter-buttons button:hover {
+    background-color: #ff8c00;
+}
+
+#restart {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: #8b4513;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #fff;
+}
+
+#restart:hover {
+    background-color: #a0522d;
+}
+
+/* --- STATUT --- */
+#status, #turn {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
