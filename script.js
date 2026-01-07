@@ -49,8 +49,7 @@ function updateWordDisplay() {
 }
 
 function updateCowboy() {
-    const opacity = attempts / maxAttempts;
-    cowboy.style.opacity = opacity;
+    cowboy.style.opacity = attempts / maxAttempts;
 }
 
 function checkWin() {
