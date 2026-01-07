@@ -164,6 +164,8 @@ function restartGame() {
   db.ref("rooms/"+roomId).update({word:localWord,guessed:[],attempts:6});
 }
 </script>
+<script>firebase.database().ref("TEST").set("OK").then(()=>alert("Firebase OK")).catch(err=>alert("Erreur Firebase: "+err));</script>
 
 </body>
 </html>
+
