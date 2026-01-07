@@ -11,6 +11,7 @@ body { font-family: Arial; background:#eee; text-align:center; }
 #leaderboard { margin-top:20px; text-align:left; max-width:450px; margin-left:auto; margin-right:auto; }
 #turn { font-weight:bold; margin-bottom:10px; }
 #error { color:red; font-weight:bold; }
+#restartInfo { font-style:italic; }
 </style>
 </head>
 <body>
@@ -33,9 +34,9 @@ body { font-family: Arial; background:#eee; text-align:center; }
   <div id="word">_ _ _ _</div>
   <div id="letters"></div>
   <p id="status"></p>
-  <button id="restartBtn" onclick="askRestart()" style="display:none;">Rejouer</button>
+  <button id="restartBtn" onclick="requestRestart()" style="display:none;">Rejouer</button>
+  <p id="restartInfo"></p>
   <div id="leaderboard"><h3>Classement</h3><ul id="scores"></ul></div>
-  <p id="restartInfo" style="font-style:italic;"></p>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -178,14 +179,14 @@ function renderTurn(){
   document.getElementById("turn").textContent="Tour de : "+currentPlayer+(currentPlayer===player?" (C'est votre tour !)":"");
 }
 
-// 🔹 Rejouer : demande au serveur / double confirmation
-function askRestart(){
+// 🔹 Demande de rejouer
+function requestRestart(){
   const updates = {};
   updates["restartRequests/"+player] = true;
   db.ref("rooms/"+roomId).update(updates);
 }
 
-// 🔹 Gérer l’état des demandes de rejouer
+// 🔹 Gérer double confirmation
 function handleRestart(restartRequests){
   const restartInfo = document.getElementById("restartInfo");
   const nbPlayers = players.length;
@@ -197,8 +198,8 @@ function handleRestart(restartRequests){
     restartInfo.textContent = `Rejouer demandé : ${nbReady} / ${nbPlayers} joueurs`;
   }
 
+  // Tous les joueurs ont demandé → reset
   if(nbReady === nbPlayers && nbPlayers>0){
-    // tous ont demandé → reset la partie
     localWord = words[Math.floor(Math.random()*words.length)];
     guessed=[]; attempts=6; turnIndex=0;
     db.ref("rooms/"+roomId).update({word:localWord, guessed:[], attempts:6, turn:0, restartRequests:{}});
