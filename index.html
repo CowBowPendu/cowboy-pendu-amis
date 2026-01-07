@@ -124,22 +124,20 @@ function generateLetterButtons(){
   lettersDiv.innerHTML="";
   for(let c=97;c<=122;c++){
     const letter = String.fromCharCode(c);
-    const btn=document.createElement("button");
+    const btn = document.createElement("button");
     btn.textContent=letter;
-    btn.onclick=()=>guessLetter(letter, btn);
+    btn.onclick=()=>guessLetter(letter);
     lettersDiv.appendChild(btn);
   }
 }
 
 // --- Guess lettre ---
-function guessLetter(letter, btn){
-  const currentPlayer = players[turnIndex];
-  if(!currentPlayer || currentPlayer.name!==player) { alert("Ce n'est pas votre tour !"); return; }
+function guessLetter(letter){
   if(guessedLetters.includes(letter)) return;
   const incorrect = !currentWord.includes(letter);
   const updatedLetters=[...guessedLetters, letter];
   const updatedAttempts=attemptsLeft - (incorrect ? 1 : 0);
-  const gameOver = updatedAttempts<=0 || !currentWord.split("").some(l => updatedLetters.includes(l)===false);
+  const gameOver = updatedAttempts<=0 || !currentWord.split("").some(l => !updatedLetters.includes(l));
   const nextTurn=(turnIndex+1)%players.length;
 
   db.ref(`games/${gameName}`).update({
@@ -148,8 +146,6 @@ function guessLetter(letter, btn){
     turnIndex: nextTurn,
     gameOver: gameOver
   });
-
-  btn.disabled=true;
 }
 
 // --- Créer ou rejoindre partie ---
@@ -158,7 +154,6 @@ function startGame(isNew){
   playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
   gameName=document.getElementById("game-name").value||"DefaultGame";
 
-  // Ajouter joueur
   db.ref(`games/${gameName}/players`).once("value").then(snap=>{
     players = snap.val()||[];
     if(!players.some(p=>p.name===player)){
@@ -167,7 +162,6 @@ function startGame(isNew){
     }
   });
 
-  // Créer partie si nouvelle
   if(isNew){
     currentWord = words[Math.floor(Math.random()*words.length)];
     db.ref(`games/${gameName}`).set({
@@ -175,7 +169,8 @@ function startGame(isNew){
       guessedLetters: [],
       attemptsLeft: maxAttempts,
       turnIndex: 0,
-      gameOver: false
+      gameOver: false,
+      players: players
     });
   }
 
@@ -184,7 +179,7 @@ function startGame(isNew){
   generateLetterButtons();
 }
 
-// --- Listener temps réel ---
+// --- Listener Firebase ---
 db.ref(`games`).on("value", snap=>{
   if(!gameName) return;
   const gameSnap = snap.val()[gameName];
