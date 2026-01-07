@@ -136,13 +136,25 @@ function joinRoom() {
     if(!playerName){ errorMessageP.textContent="Veuillez entrer un pseudo !"; return; }
     errorMessageP.textContent="";
     roomId = document.getElementById("room-id").value.toUpperCase();
-    db.ref("rooms/" + roomId).once("value").then(snapshot => {
+
+    const roomRef = db.ref("rooms/" + roomId);
+    roomRef.once("value").then(snapshot => {
         if(snapshot.exists()){
             const data = snapshot.val();
-            if(!data.players[playerName]) data.players[playerName]=0;
-            db.ref("rooms/" + roomId + "/players").set(data.players);
+            // Ajouter le joueur si pas présent
+            if(!data.players[playerName]){
+                data.players[playerName] = 0;
+                roomRef.child("players").set(data.players);
+            }
+            // Mettre à jour la présence
+            userRef = roomRef.child(`presence/${playerName}`);
+            userRef.set(true);
+            userRef.onDisconnect().remove();
+
             joinRoomUI();
-        } else { alert("Partie introuvable !"); }
+        } else {
+            alert("Partie introuvable !");
+        }
     });
 }
 
@@ -153,10 +165,6 @@ function joinRoomUI() {
     document.getElementById("join-create").style.display="none";
     roomInfoDiv.style.display="block";
     currentRoomP.textContent="Code de la partie : " + roomId;
-
-    userRef = db.ref(`rooms/${roomId}/presence/${playerName}`);
-    userRef.set(true);
-    userRef.onDisconnect().remove(); // déconnexion automatique
     listenRoom();
 }
 
@@ -184,6 +192,7 @@ function listenRoom() {
         updateConnectedPlayers(presenceData);
         notificationsDiv.textContent = "Joueurs présents : " + Object.keys(presenceData).join(", ");
 
+        // Passer au tour suivant si joueur absent
         if(players[turn % players.length] && !presenceData[players[turn % players.length]]){
             db.ref(`rooms/${roomId}/turn`).set(turn + 1);
         }
@@ -193,8 +202,7 @@ function listenRoom() {
 }
 
 // =========================
-// 🔹 JEU
-// =========================
+// 🔹 JEU (lettres et score)
 function updateWordDisplay() {
     let display = "";
     for(let l of currentWord) display += guessedLetters.includes(l)? l+" ":"_ ";
@@ -208,25 +216,28 @@ function generateLetterButtons() {
     const activePlayer = players[turn % players.length];
     if(activePlayer !== playerName) return;
 
-    for(let c=97;c<=122;c++){
-        const letter = String.fromCharCode(c);
-        const btn=document.createElement("button");
-        btn.textContent=letter;
+    const alphabet = "abcdefghijklmnopqrstuvwxyzéàèùâêîôûç".split("");
+
+    for(let letter of alphabet){
+        const btn = document.createElement("button");
+        btn.textContent = letter;
         if(guessedLetters.includes(letter)) btn.disabled = true;
 
         btn.onclick = () => {
             if(guessedLetters.includes(letter)) return;
+
             guessedLetters.push(letter);
             btn.disabled = true;
+            updateWordDisplay();
 
-            if(!currentWord.includes(letter)){
-                attemptsLeft--;
-            } else {
+            if(currentWord.includes(letter)){
                 db.ref(`rooms/${roomId}/players/${playerName}`).transaction(val => (val||0)+1);
+            } else {
+                attemptsLeft--;
+                db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
             }
 
             db.ref(`rooms/${roomId}/guessedLetters`).set(guessedLetters);
-            db.ref(`rooms/${roomId}/attemptsLeft`).set(attemptsLeft);
             db.ref(`rooms/${roomId}/turn`).set(turn + 1);
         };
         lettersDiv.appendChild(btn);
