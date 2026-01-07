@@ -292,23 +292,23 @@ function listenReplayRequests(){
                 }
             });
             const allReady = playersList.every(p => replayRequests[p] === true);
-            if(allReady){
-                db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
-                    const newVal = (n||0)+1;
-                    gamesPlayed = newVal;
-                    return newVal;
-                }).then(() => {
-                    if(gamesPlayed < totalGames){
-                        restartGame();
-                    } else {
-                        statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
-                        replayBtn.style.display = "none";
-                    }
-                });
-            }
+if(allReady){
+    if(gamesPlayed + 1 >= totalGames){
+        // 🔁 NOUVEAU CYCLE
+        db.ref(`rooms/${roomId}`).update({
+            gamesPlayed: 0,
+            replayRequests: {}
+        }).then(() => {
+            statusDiv.textContent = "🔄 Nouvelle manche lancée !";
+            restartGame();
         });
-    });
+    } else {
+        // ▶️ Partie suivante normale
+        db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => (n||0)+1)
+            .then(() => restartGame());
+    }
 }
+
 
 function restartGame(){
     const word = words[Math.floor(Math.random()*words.length)];
@@ -326,3 +326,4 @@ function restartGame(){
 </script>
 </body>
 </html>
+
