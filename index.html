@@ -61,8 +61,8 @@ function createRoom(){
   player = document.getElementById("name").value.trim();
   if(!player) return document.getElementById("error").textContent="Entre un pseudo !";
 
-  // roomId uniquement en minuscules et chiffres
-  roomId = Math.random().toString(36).substring(2,8);
+  // roomId en minuscules pour garantir le join
+  roomId = Math.random().toString(36).substring(2,8).toLowerCase();
 
   localWord = words[Math.floor(Math.random()*words.length)];
   guessed=[]; attempts=6; turnIndex=0;
@@ -83,7 +83,7 @@ function createRoom(){
 // 🔹 Rejoindre une partie
 function joinRoom(){
   player = document.getElementById("name").value.trim();
-  roomId = document.getElementById("roomInput").value.trim().toLowerCase();
+  roomId = document.getElementById("roomInput").value.trim().toLowerCase(); // conversion automatique en minuscules
   if(!player||!roomId) return document.getElementById("error").textContent="Pseudo ou code manquant !";
 
   db.ref("rooms/"+roomId).once("value").then(snap=>{
