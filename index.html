@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Cowboy Pendu Multijoueur ✅</title>
+<title>Cowboy Pendu Multijoueur 🤠</title>
 <style>
 body { font-family: Arial; background:#eee; text-align:center; }
 #game { background:white; padding:20px; margin:20px auto; width:450px; border-radius:10px; }
@@ -40,7 +40,7 @@ body { font-family: Arial; background:#eee; text-align:center; }
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 CONFIG FIREBASE – Vérifie que l’URL est exactement celle de ta base
+// 🔥 CONFIG FIREBASE – ton URL est déjà correcte
 firebase.initializeApp({
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
@@ -57,30 +57,34 @@ let roomId="", player="", localWord="", guessed=[], attempts=6, players=[], turn
 
 // 🔹 Créer une partie
 function createRoom(){
-  player = name.value.trim();
-  if(!player) return error.textContent="Entre un pseudo !";
+  player = document.getElementById("name").value.trim();
+  if(!player) return document.getElementById("error").textContent="Entre un pseudo !";
   roomId = Math.random().toString(36).substring(2,8).toUpperCase();
   localWord = words[Math.floor(Math.random()*words.length)];
   guessed=[]; attempts=6; turnIndex=0;
 
-  db.ref("rooms/"+roomId).set({
+  const data = {
     word: localWord,
     guessed: [],
     attempts: attempts,
     players: {[player]:0},
     turn: 0
-  }).then(()=>enterRoom())
-    .catch(err => error.textContent="Erreur création : "+err);
+  };
+
+  // Création garantie
+  db.ref("rooms/"+roomId).set(data)
+    .then(()=>enterRoom())
+    .catch(err=>document.getElementById("error").textContent="Erreur : "+err);
 }
 
 // 🔹 Rejoindre une partie
 function joinRoom(){
-  player = name.value.trim();
-  roomId = roomInput.value.trim().toUpperCase();
-  if(!player||!roomId) return error.textContent="Pseudo ou code manquant !";
+  player = document.getElementById("name").value.trim();
+  roomId = document.getElementById("roomInput").value.trim().toUpperCase();
+  if(!player||!roomId) return document.getElementById("error").textContent="Pseudo ou code manquant !";
 
   db.ref("rooms/"+roomId).once("value").then(snap=>{
-    if(!snap.exists()) return error.textContent="Partie introuvable !";
+    if(!snap.exists()) return document.getElementById("error").textContent="Partie introuvable !";
     let data = snap.val();
     if(!data.players) data.players={};
     if(!data.players[player]) data.players[player]=0;
@@ -90,9 +94,9 @@ function joinRoom(){
 
 // 🔹 Entrer dans la room
 function enterRoom(){
-  menu.style.display="none";
-  room.style.display="block";
-  roomCode.textContent="Code : "+roomId;
+  document.getElementById("menu").style.display="none";
+  document.getElementById("room").style.display="block";
+  document.getElementById("roomCode").textContent="Code : "+roomId;
   renderWord(); renderLetters(); renderTurn();
 
   db.ref("rooms/"+roomId).on("value", snap=>{
@@ -113,30 +117,31 @@ function renderWord(){
   for(let l of localWord){
     out += guessed.includes(l)?l+" ":"_ ";
   }
-  word.textContent = out;
-  if(attempts<=0) status.textContent="💀 Perdu ! Mot : "+localWord;
-  else if(!out.includes("_")) status.textContent="🎉 Gagné !";
-  else status.textContent="Essais : "+attempts;
+  document.getElementById("word").textContent = out;
+  if(attempts<=0) document.getElementById("status").textContent="💀 Perdu ! Mot : "+localWord;
+  else if(!out.includes("_")) document.getElementById("status").textContent="🎉 Gagné !";
+  else document.getElementById("status").textContent="Essais : "+attempts;
 }
 
 // 🔹 Lettres
 function renderLetters(){
-  letters.innerHTML="";
+  const lettersDiv = document.getElementById("letters");
+  lettersDiv.innerHTML="";
   if(attempts<=0 || !localWord) return;
-  let currentPlayer = players[turnIndex%players.length];
+  const currentPlayer = players[turnIndex%players.length];
   if(currentPlayer!==player) return;
   "abcdefghijklmnopqrstuvwxyz".split("").forEach(l=>{
-    const btn=document.createElement("button");
-    btn.textContent=l;
+    const btn = document.createElement("button");
+    btn.textContent = l;
     btn.disabled = guessed.includes(l);
-    btn.onclick=()=>{
+    btn.onclick = ()=>{
       if(guessed.includes(l)) return;
       guessed.push(l);
       if(!localWord.includes(l)) attempts--;
       db.ref("rooms/"+roomId).update({guessed:guessed, attempts:attempts, turn:(turnIndex+1)});
       if(localWord.includes(l)) db.ref("rooms/"+roomId+"/players/"+player).transaction(v=>(v||0)+1);
     };
-    letters.appendChild(btn);
+    lettersDiv.appendChild(btn);
   });
 }
 
@@ -153,9 +158,9 @@ function renderLeaderboard(playersData){
 
 // 🔹 Tour actuel
 function renderTurn(){
-  if(players.length===0) { turn.textContent="Tour de : …"; return; }
-  let currentPlayer = players[turnIndex%players.length];
-  turn.textContent="Tour de : "+currentPlayer+(currentPlayer===player?" (C'est votre tour !)":"");
+  if(players.length===0) { document.getElementById("turn").textContent="Tour de : …"; return; }
+  const currentPlayer = players[turnIndex%players.length];
+  document.getElementById("turn").textContent="Tour de : "+currentPlayer+(currentPlayer===player?" (C'est votre tour !)":"");
 }
 
 // 🔹 Rejouer
@@ -165,12 +170,6 @@ function restartGame(){
   db.ref("rooms/"+roomId).update({word:localWord, guessed:[], attempts:6, turn:0});
 }
 </script>
-<script>
-firebase.database().ref("test-room").set({ok:true})
-  .then(()=>alert("Écriture OK"))
-  .catch(err=>alert("Erreur : "+err));
-</script>
 
 </body>
 </html>
-
