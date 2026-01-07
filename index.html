@@ -10,11 +10,12 @@ body { font-family: Arial; background:#eee; text-align:center; }
 #letters button { width:35px; height:35px; margin:2px; }
 #leaderboard { margin-top:20px; text-align:left; max-width:450px; margin-left:auto; margin-right:auto; }
 #turn { font-weight:bold; margin-bottom:10px; }
+#error { color:red; font-weight:bold; }
 </style>
 </head>
 <body>
 
-<h1>Cowboy Pendu Tour par Tour 🤠</h1>
+<h1>Cowboy Pendu Multijoueur 🤠</h1>
 
 <div id="game">
 
@@ -40,7 +41,7 @@ body { font-family: Arial; background:#eee; text-align:center; }
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 CONFIG FIREBASE – ton URL est déjà correcte
+// 🔹 CONFIG FIREBASE
 firebase.initializeApp({
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
@@ -59,7 +60,10 @@ let roomId="", player="", localWord="", guessed=[], attempts=6, players=[], turn
 function createRoom(){
   player = document.getElementById("name").value.trim();
   if(!player) return document.getElementById("error").textContent="Entre un pseudo !";
-  roomId = Math.random().toString(36).substring(2,8).toUpperCase();
+
+  // roomId uniquement en minuscules et chiffres
+  roomId = Math.random().toString(36).substring(2,8);
+
   localWord = words[Math.floor(Math.random()*words.length)];
   guessed=[]; attempts=6; turnIndex=0;
 
@@ -71,16 +75,15 @@ function createRoom(){
     turn: 0
   };
 
-  // Création garantie
   db.ref("rooms/"+roomId).set(data)
     .then(()=>enterRoom())
-    .catch(err=>document.getElementById("error").textContent="Erreur : "+err);
+    .catch(err=>document.getElementById("error").textContent="Erreur création : "+err);
 }
 
 // 🔹 Rejoindre une partie
 function joinRoom(){
   player = document.getElementById("name").value.trim();
-  roomId = document.getElementById("roomInput").value.trim().toUpperCase();
+  roomId = document.getElementById("roomInput").value.trim().toLowerCase();
   if(!player||!roomId) return document.getElementById("error").textContent="Pseudo ou code manquant !";
 
   db.ref("rooms/"+roomId).once("value").then(snap=>{
