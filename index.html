@@ -1,235 +1,281 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cowboy Pendu Multijoueur</title>
-    <style>
-        /* --- Styles de base --- */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-            padding: 0;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cowboy Pendu Multijoueur 🎯</title>
 
-        header {
-            background-color: #8b4513;
-            color: white;
-            padding: 20px;
-            width: 100%;
-            text-align: center;
-        }
+<!-- AdSense -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9912335877113055"
+     crossorigin="anonymous"></script>
 
-        main {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            margin: 20px;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        #game-container {
-            flex: 3;
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-
-        #scoreboard, #ads {
-            flex: 1;
-            margin-left: 20px;
-        }
-
-        #scoreboard {
-            background-color: #fff8dc;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        #ads {
-            background-color: #e6e6e6;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-        }
-
-        button:hover {
-            opacity: 0.8;
-        }
-
-        #word-display {
-            font-size: 2em;
-            letter-spacing: 10px;
-            margin: 20px 0;
-        }
-
-        #letters button {
-            width: 40px;
-            height: 40px;
-            margin: 2px;
-        }
-    </style>
+<style>
+body {font-family: Arial, sans-serif; background:#f0f0f0; margin:0; padding:0; display:flex; flex-direction:column; align-items:center;}
+header {background:#8b4513; color:white; padding:20px; width:100%; text-align:center;}
+main {display:flex; flex-direction:row; justify-content:center; margin:20px; width:100%; max-width:1200px;}
+#game-container {flex:3; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); min-height:500px; display:flex; flex-direction:column; align-items:center;}
+#word-display {font-size:2em; letter-spacing:10px; margin:20px 0;}
+#letters button {width:40px; height:40px; margin:2px; font-weight:bold; font-size:1em; border:2px solid #333;}
+button {padding:10px 20px; margin:5px; border-radius:5px; border:none; cursor:pointer; font-weight:bold;}
+button:hover {opacity:0.8;}
+.player-label {display:inline-block; padding:3px 8px; margin-right:5px; border-radius:5px; color:white; font-weight:bold;}
+#scoreboard, #ads {flex:1; margin-left:20px;}
+#scoreboard {background:#fff8dc; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+#ads {background:#e6e6e6; padding:15px; border-radius:10px; text-align:center;}
+</style>
 </head>
 <body>
 
 <header>
-    <h1>Cowboy Pendu Multijoueur 🤠</h1>
+<h1>Cowboy Pendu Multijoueur 🤠</h1>
 </header>
 
 <main>
-    <div id="game-container">
-        <div id="word-display">_ _ _ _ _</div>
-        <div id="letters"></div>
-        <div id="status"></div>
-        <button id="new-game">Nouvelle Partie</button>
-        <p id="turn-info"></p>
-    </div>
+<div id="game-container">
+    <canvas id="hangman-canvas" width="200" height="250" style="background-color:#f0f0f0;border:1px solid #333"></canvas>
+    <div id="word-display">_ _ _ _ _</div>
+    <div id="letters"></div>
+    <div id="status"></div>
+    <p id="turn-info"></p>
+    <button id="new-game">Nouvelle Partie</button>
+</div>
 
-    <div id="scoreboard">
-        <h2>Classement</h2>
-        <ul id="leaderboard">
-            <!-- Scores des joueurs -->
-        </ul>
-    </div>
+<div id="scoreboard">
+<h2>Classement</h2>
+<ul id="leaderboard"></ul>
+<h3>Joueurs connectés</h3>
+<div id="players-list"></div>
+</div>
 
-    <div id="ads">
-        <h3>Publicités / Dons</h3>
-        <button onclick="alert('Merci pour le soutien !')">Faire un don</button>
-        <p>Annonce sponsorisée ici</p>
-    </div>
+<div id="ads">
+<h3>Publicités / Dons</h3>
+<button onclick="alert('Merci pour le soutien !')">Faire un don</button>
+<p>Annonce sponsorisée ici</p>
+
+<!-- Bloc AdSense -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-9912335877113055"
+     data-ad-slot="1234567890"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+</div>
 </main>
 
-<!-- Firebase SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    // --- Configuration Firebase (à remplacer par vos infos) ---
-    const firebaseConfig = {
-        apiKey: "VOTRE_API_KEY",
-        authDomain: "VOTRE_PROJECT.firebaseapp.com",
-        databaseURL: "https://VOTRE_PROJECT.firebaseio.com",
-        projectId: "VOTRE_PROJECT_ID",
-        storageBucket: "VOTRE_PROJECT.appspot.com",
-        messagingSenderId: "SENDER_ID",
-        appId: "APP_ID"
-    };
+// --- Config Firebase ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8bXQRbTDc",
+  authDomain: "cowboy-entre-amis.firebaseapp.com",
+  databaseURL: "https://cowboy-entre-amis-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "cowboy-entre-amis",
+  storageBucket: "cowboy-entre-amis.firebasestorage.app",
+  messagingSenderId: "561482687512",
+  appId: "1:561482687512:web:846729411c9158d3ea0f6d",
+  measurementId: "G-LZ70952MCL"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+// --- Variables ---
+const words = ["cowboy","cheval","lasso","saloon","pistolet"];
+let currentWord = "";
+let guessedLetters = [];
+let maxAttempts = 6;
+let attemptsLeft = maxAttempts;
+let isFalling = false;
 
-    // --- Jeu Cowboy Pendu ---
-    const words = ["cowboy", "cheval", "lasso", "saloon", "pistolet"];
-    let currentWord = "";
-    let guessedLetters = [];
-    let maxAttempts = 6;
-    let attemptsLeft = maxAttempts;
-    let player = prompt("Entrez votre pseudo :") || "Joueur";
-    let turn = 0; // Pour tour par tour
-    let players = [];
+let player = prompt("Entrez votre pseudo :") || "Joueur";
+let playerColor = "#"+Math.floor(Math.random()*16777215).toString(16);
+let players = [];
+let turnIndex = 0;
 
-    const wordDisplay = document.getElementById("word-display");
-    const lettersDiv = document.getElementById("letters");
-    const statusDiv = document.getElementById("status");
-    const leaderboard = document.getElementById("leaderboard");
-    const turnInfo = document.getElementById("turn-info");
+const wordDisplay = document.getElementById("word-display");
+const lettersDiv = document.getElementById("letters");
+const leaderboard = document.getElementById("leaderboard");
+const playersListDiv = document.getElementById("players-list");
+const turnInfo = document.getElementById("turn-info");
+const statusDiv = document.getElementById("status");
+const canvas = document.getElementById("hangman-canvas");
+const ctx = canvas.getContext("2d");
 
-    function startGame() {
-        currentWord = words[Math.floor(Math.random() * words.length)];
-        guessedLetters = [];
-        attemptsLeft = maxAttempts;
-        displayWord();
-        generateLetterButtons();
-        statusDiv.textContent = `Vous avez ${attemptsLeft} essais restants.`;
-    }
+// --- Sons ---
+const soundWrong = new Audio("https://actions.google.com/sounds/v1/impacts/clang_and_whoosh.ogg");
+const soundWin = new Audio("https://actions.google.com/sounds/v1/cartoon/clang.ogg");
+const soundLose = new Audio("https://actions.google.com/sounds/v1/cartoon/metal_clang.ogg");
 
-    function displayWord() {
-        let display = "";
-        for (let letter of currentWord) {
-            display += guessedLetters.includes(letter) ? letter + " " : "_ ";
+// --- Dessin pendu ---
+function drawHangman(errors, fallProgress=0){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle="#333";
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(20,230); ctx.lineTo(180,230);
+    ctx.moveTo(50,230); ctx.lineTo(50,20); ctx.lineTo(130,20); ctx.lineTo(130,50); ctx.stroke();
+
+    let headY=70+fallProgress, bodyY=90+fallProgress, limbY=150+fallProgress;
+
+    if(errors>0){ctx.beginPath(); ctx.arc(130,headY,20,0,Math.PI*2); ctx.stroke();}
+    if(errors>1){ctx.beginPath(); ctx.moveTo(130,bodyY); ctx.lineTo(130,limbY); ctx.stroke();}
+    if(errors>2){ctx.beginPath(); ctx.moveTo(130,100+fallProgress); ctx.lineTo(100,130+fallProgress); ctx.stroke();}
+    if(errors>3){ctx.beginPath(); ctx.moveTo(130,100+fallProgress); ctx.lineTo(160,130+fallProgress); ctx.stroke();}
+    if(errors>4){ctx.beginPath(); ctx.moveTo(130,limbY); ctx.lineTo(100,190+fallProgress); ctx.stroke();}
+    if(errors>5){ctx.beginPath(); ctx.moveTo(130,limbY); ctx.lineTo(160,190+fallProgress); ctx.stroke();}
+}
+
+// --- Animation chute ---
+function animateFall(){
+    if(isFalling) return;
+    isFalling=true;
+    let progress=0;
+    const interval = setInterval(()=>{
+        progress+=2;
+        drawHangman(maxAttempts,progress);
+        if(progress>=80){clearInterval(interval); soundLose.play();}
+    },50);
+}
+
+// --- Joueurs ---
+function joinGame(){
+    db.ref("players").once("value").then(snapshot=>{
+        players = snapshot.val()||[];
+        if(!players.some(p=>p.name===player)){
+            players.push({name:player,color:playerColor});
+            db.ref("players").set(players);
         }
-        wordDisplay.textContent = display.trim();
-    }
+        updatePlayersDisplay();
+    });
+}
 
-    function generateLetterButtons() {
-        lettersDiv.innerHTML = "";
-        for (let c = 97; c <= 122; c++) {
-            const letter = String.fromCharCode(c);
-            const btn = document.createElement("button");
-            btn.textContent = letter;
-            btn.onclick = () => guessLetter(letter);
-            lettersDiv.appendChild(btn);
+function updatePlayersDisplay(){
+    playersListDiv.innerHTML="";
+    players.forEach(p=>{
+        const span=document.createElement("span");
+        span.textContent=p.name;
+        span.className="player-label";
+        span.style.backgroundColor=p.color;
+        playersListDiv.appendChild(span);
+    });
+}
+
+// --- Début partie ---
+function startGame(){
+    db.ref("game/currentWord").once("value").then(snapshot=>{
+        if(!snapshot.exists()){
+            currentWord = words[Math.floor(Math.random()*words.length)];
+            db.ref("game").set({currentWord, guessedLetters:[], attemptsLeft:maxAttempts, turnIndex:0});
         }
+    });
+}
+
+// --- Lettres ---
+function generateLetterButtons(){
+    lettersDiv.innerHTML="";
+    for(let c=97;c<=122;c++){
+        const letter=String.fromCharCode(c);
+        const btn=document.createElement("button");
+        btn.textContent=letter;
+        btn.onclick=()=>guessLetter(letter);
+        lettersDiv.appendChild(btn);
     }
+}
 
-    function guessLetter(letter) {
-        if (guessedLetters.includes(letter)) return;
-        guessedLetters.push(letter);
+// --- Deviner lettre ---
+function guessLetter(letter){
+    db.ref("game").once("value").then(snapshot=>{
+        const game=snapshot.val();
+        if(!game) return;
+        if(players[game.turnIndex].name!==player){alert("Ce n'est pas votre tour !"); return;}
+        if(game.guessedLetters.includes(letter)) return;
 
-        if (!currentWord.includes(letter)) {
-            attemptsLeft--;
-        }
+        let updatedLetters=[...game.guessedLetters,letter];
+        let updatedAttempts=game.attemptsLeft;
+        if(!game.currentWord.includes(letter)){updatedAttempts--; soundWrong.play();}
 
-        displayWord();
-        statusDiv.textContent = `Il reste ${attemptsLeft} essais.`;
+        let nextTurn=(game.turnIndex+1)%players.length;
+        db.ref("game").update({guessedLetters:updatedLetters,attemptsLeft:updatedAttempts,turnIndex:nextTurn});
+    });
+}
 
-        checkGameOver();
-        saveScore();
+// --- Affichage mot ---
+function displayWord(){
+    let display="";
+    for(let l of currentWord){
+        display+=guessedLetters.includes(l)?l+" ":"_ ";
     }
+    wordDisplay.textContent=display.trim();
+}
 
-    function checkGameOver() {
-        if (!wordDisplay.textContent.includes("_")) {
-            statusDiv.textContent = "🎉 Vous avez gagné !";
-        } else if (attemptsLeft <= 0) {
-            statusDiv.textContent = `💀 Perdu ! Le mot était "${currentWord}"`;
-        }
+// --- Fin partie ---
+function checkGameOver(){
+    if(!wordDisplay.textContent.includes("_")){
+        statusDiv.textContent="🎉 Partie terminée, le mot a été trouvé !";
+        soundWin.play();
+    }else if(attemptsLeft<=0){
+        statusDiv.textContent=`💀 Partie terminée, le mot était "${currentWord}"`;
+        animateFall();
     }
+}
 
-    // --- Scores & Classement Firebase ---
-    function saveScore() {
-        const score = maxAttempts - attemptsLeft;
-        db.ref("scores/" + player).set(score);
-        updateLeaderboard();
-    }
-
-    function updateLeaderboard() {
-        db.ref("scores").once("value", snapshot => {
-            const data = snapshot.val() || {};
-            leaderboard.innerHTML = "";
-            const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]);
-            for (let [name, score] of sorted) {
-                const li = document.createElement("li");
-                li.textContent = `${name} : ${score} pts`;
-                leaderboard.appendChild(li);
-            }
-        });
-    }
-
-    // --- Gestion tour par tour (exemple simple) ---
-    function nextTurn() {
-        turn++;
-        turnInfo.textContent = `Tour du joueur ${players[turn % players.length]}`;
-    }
-
-    document.getElementById("new-game").onclick = startGame;
-
-    startGame();
+// --- Scores ---
+function saveScore(){
+    const score=maxAttempts-attemptsLeft;
+    db.ref("scores/"+player).set(score);
     updateLeaderboard();
+}
+
+function updateLeaderboard(){
+    db.ref("scores").once("value").then(snapshot=>{
+        const data=snapshot.val()||{};
+        leaderboard.innerHTML="";
+        Object.entries(data).sort((a,b)=>b[1]-a[1]).forEach(([name,score])=>{
+            const li=document.createElement("li");
+            li.textContent=`${name} : ${score} pts`;
+            leaderboard.appendChild(li);
+        });
+    });
+}
+
+// --- Firebase en temps réel ---
+db.ref("game").on("value",snapshot=>{
+    const game=snapshot.val();
+    if(!game) return;
+    currentWord=game.currentWord;
+    guessedLetters=game.guessedLetters;
+    attemptsLeft=game.attemptsLeft;
+    turnIndex=game.turnIndex;
+
+    displayWord();
+    statusDiv.textContent=`Il reste ${attemptsLeft} essais.`;
+    turnInfo.textContent=`Tour du joueur ${players[turnIndex]?.name || "?"}`;
+    drawHangman(maxAttempts-attemptsLeft);
+    checkGameOver();
+    saveScore();
+});
+
+db.ref("players").on("value",snapshot=>{
+    players=snapshot.val()||[];
+    updatePlayersDisplay();
+});
+
+document.getElementById("new-game").onclick=()=>{
+    db.ref("game").remove();
+    isFalling=false;
+    startGame();
+};
+
+// --- Init ---
+joinGame();
+generateLetterButtons();
+startGame();
+updateLeaderboard();
 </script>
 
 </body>
