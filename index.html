@@ -144,7 +144,6 @@ function animateFall(){
 
 // --- Rejoindre ou créer la partie ---
 function joinOrCreateGame() {
-    // joueurs
     db.ref("players").once("value").then(snap=>{
         players = snap.val()||[];
         if(!players.some(p=>p.name===player)){
@@ -152,37 +151,37 @@ function joinOrCreateGame() {
             db.ref("players").set(players);
         }
         updatePlayersDisplay();
-    });
 
-    // partie
-    db.ref("game").once("value").then(snap=>{
-        if(!snap.exists()){
-            currentWord = words[Math.floor(Math.random()*words.length)];
-            db.ref("game").set({
-                currentWord: currentWord,
-                guessedLetters: [],
-                attemptsLeft: maxAttempts,
-                turnIndex: 0,
-                gameOver: false
-            });
-        } else {
-            const data = snap.val();
-            currentWord = data.currentWord;
-            guessedLetters = data.guessedLetters;
-            attemptsLeft = data.attemptsLeft;
-            turnIndex = data.turnIndex;
-        }
+        db.ref("game").once("value").then(snap=>{
+            if(!snap.exists()){
+                currentWord = words[Math.floor(Math.random()*words.length)];
+                db.ref("game").set({
+                    currentWord: currentWord,
+                    guessedLetters: [],
+                    attemptsLeft: maxAttempts,
+                    turnIndex: 0,
+                    gameOver: false
+                });
+            } else {
+                const data = snap.val();
+                currentWord = data.currentWord;
+                guessedLetters = data.guessedLetters;
+                attemptsLeft = data.attemptsLeft;
+                turnIndex = data.turnIndex;
+            }
+            generateLetterButtons();
+        });
     });
 }
 
-// --- Gestion des lettres ---
+// --- Lettres ---
 function guessLetter(letter){
     db.ref("game").once("value").then(snap=>{
         const game = snap.val();
         if(!game || game.gameOver) return;
 
         const currentPlayer = players[game.turnIndex];
-        if(currentPlayer?.name !== player){
+        if(!currentPlayer || currentPlayer.name !== player){
             alert("Ce n'est pas votre tour !");
             return;
         }
@@ -191,11 +190,11 @@ function guessLetter(letter){
 
         let updatedLetters = [...game.guessedLetters, letter];
         let updatedAttempts = game.attemptsLeft;
-        if(!game.currentWord.includes(letter)){updatedAttempts--; soundWrong.play();}
+        if(!game.currentWord.includes(letter)) { updatedAttempts--; soundWrong.play(); }
 
         let nextTurn = (game.turnIndex + 1) % players.length;
         let gameOver = false;
-        if(updatedAttempts<=0 || !game.currentWord.split("").some(l => !updatedLetters.includes(l))) {
+        if(updatedAttempts <= 0 || !game.currentWord.split("").some(l => !updatedLetters.includes(l))) {
             gameOver = true;
         }
 
@@ -208,7 +207,6 @@ function guessLetter(letter){
     });
 }
 
-// --- Générer boutons lettres ---
 function generateLetterButtons(){
     lettersDiv.innerHTML="";
     for(let c=97;c<=122;c++){
@@ -278,8 +276,20 @@ db.ref("game").on("value", snap=>{
 
     displayWord();
     drawHangman(maxAttempts - attemptsLeft);
-    turnInfo.textContent = `Tour du joueur ${players[turnIndex]?.name || "?"}`;
-    checkGameOver();
+
+    const currentPlayer = players[turnIndex];
+    turnInfo.textContent = "Tour du joueur " + (currentPlayer ? currentPlayer.name : "?");
+
+    if(game.gameOver){
+        if(attemptsLeft<=0){
+            animateFall();
+            statusDiv.textContent = `💀 Partie terminée, le mot était "${currentWord}"`;
+        } else {
+            soundWin.play();
+            statusDiv.textContent = `🎉 Partie terminée, le mot a été trouvé !`;
+        }
+    }
+
     saveScore();
 });
 
@@ -307,7 +317,6 @@ document.getElementById("new-game").onclick = ()=>{
 
 // --- Init ---
 joinOrCreateGame();
-generateLetterButtons();
 updateLeaderboard();
 </script>
 
