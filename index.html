@@ -2,23 +2,19 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Cowboy Pendu 🤠</title>
-
+<title>Cowboy Pendu Multijoueur 🤠</title>
 <style>
 body { font-family: Arial; background:#eee; text-align:center; }
 #game { background:white; padding:20px; margin:20px auto; width:400px; border-radius:10px; }
 #word { font-size:32px; letter-spacing:10px; margin:20px; }
 #letters button { width:35px; height:35px; margin:2px; }
+#leaderboard { margin-top:20px; text-align:left; max-width:400px; margin-left:auto; margin-right:auto; }
 </style>
 </head>
 
 <body>
-  <script>
-alert("SI TU VOIS CE MESSAGE, LE JS MARCHE");
-</script>
 
-
-<h1>Cowboy Pendu 🤠</h1>
+<h1>Cowboy Pendu Multijoueur 🤠</h1>
 
 <div id="game">
 
@@ -27,6 +23,7 @@ alert("SI TU VOIS CE MESSAGE, LE JS MARCHE");
   <button onclick="createRoom()">Créer</button><br><br>
   <input id="roomInput" placeholder="Code">
   <button onclick="joinRoom()">Rejoindre</button>
+  <p id="error"></p>
 </div>
 
 <div id="room" style="display:none;">
@@ -34,15 +31,15 @@ alert("SI TU VOIS CE MESSAGE, LE JS MARCHE");
   <div id="word">_ _ _ _</div>
   <div id="letters"></div>
   <p id="status"></p>
-</div>
-
+  <button onclick="restartGame()">Rejouer</button>
+  <div id="leaderboard"><h3>Classement</h3><ul id="scores"></ul></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-/* 🔥 FIREBASE */
+// 🔥 FIREBASE
 firebase.initializeApp({
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
@@ -55,15 +52,17 @@ firebase.initializeApp({
 
 const db = firebase.database();
 
-/* 🎮 VARIABLES */
-const words = ["cowboy","cheval","lasso","saloon"];
+const words = ["cowboy","cheval","lasso","saloon","pistolet"];
 let roomId = "";
+let player = "";
 let localWord = "";
 let guessed = [];
 let attempts = 6;
 
-/* 🆕 CREATE */
+// 🔹 Créer une partie
 function createRoom() {
+  player = name.value.trim();
+  if(!player) return error.textContent="Entre un pseudo";
   roomId = Math.random().toString(36).substring(2,8).toUpperCase();
   localWord = words[Math.floor(Math.random()*words.length)];
   guessed = [];
@@ -72,29 +71,36 @@ function createRoom() {
   db.ref("rooms/"+roomId).set({
     word: localWord,
     guessed: [],
-    attempts: 6
+    attempts: 6,
+    players: {[player]:0}
   });
 
   enterRoom();
 }
 
-/* 🔑 JOIN */
+// 🔹 Rejoindre
 function joinRoom() {
-  roomId = roomInput.value.toUpperCase();
+  player = name.value.trim();
+  roomId = roomInput.value.trim().toUpperCase();
+  if(!player||!roomId) return;
+
   db.ref("rooms/"+roomId).once("value").then(snap=>{
-    if(!snap.exists()) return alert("Partie introuvable");
+    if(!snap.exists()) return error.textContent="Partie introuvable";
+    // ajoute joueur si pas existant
+    let data = snap.val();
+    if(!data.players[player]) data.players[player]=0;
+    db.ref("rooms/"+roomId+"/players").set(data.players);
     enterRoom();
   });
 }
 
-/* 🚪 ENTER */
+// 🔹 Entrer dans la room
 function enterRoom() {
   menu.style.display="none";
   room.style.display="block";
   roomCode.textContent="Code : "+roomId;
-
-  // ⚠️ AFFICHE TOUJOURS UN MOT
   renderWord();
+  renderLetters();
 
   db.ref("rooms/"+roomId).on("value", snap=>{
     const d = snap.val();
@@ -103,42 +109,67 @@ function enterRoom() {
     guessed = d.guessed || [];
     attempts = d.attempts;
     renderWord();
+    renderLetters();
+    renderLeaderboard(d.players || {});
   });
-
-  renderLetters();
 }
 
-/* 🔤 MOT */
+// 🔹 Affichage du mot
 function renderWord() {
   let out="";
   for(let l of localWord){
-    out += guessed.includes(l) ? l+" " : "_ ";
+    out += guessed.includes(l)?l+" ":"_ ";
   }
-  word.textContent = out || "_ _ _ _";
-  status.textContent = "Essais : "+attempts;
+  word.textContent = out;
+  if(attempts<=0) status.textContent="💀 Perdu ! Mot : "+localWord;
+  else if(!out.includes("_")) status.textContent="🎉 Gagné !";
+  else status.textContent="Essais : "+attempts;
 }
 
-/* 🔘 LETTRES */
+// 🔹 Lettres
 function renderLetters() {
   letters.innerHTML="";
+  if(attempts<=0 || !localWord) return;
   "abcdefghijklmnopqrstuvwxyz".split("").forEach(l=>{
-    const b=document.createElement("button");
-    b.textContent=l;
-    b.disabled=guessed.includes(l)||attempts<=0;
-    b.onclick=()=>{
+    const btn=document.createElement("button");
+    btn.textContent=l;
+    btn.disabled=guessed.includes(l) || attempts<=0;
+    btn.onclick=()=>{ 
       if(guessed.includes(l)) return;
       guessed.push(l);
       if(!localWord.includes(l)) attempts--;
-      db.ref("rooms/"+roomId).update({
-        guessed: guessed,
-        attempts: attempts
-      });
+      // incrémente score si trouvé
+      let scoreUpdate = {};
+      if(localWord.includes(l)) scoreUpdate[player] = (document.getElementById("scores").dataset[player]||0)+1;
+      db.ref("rooms/"+roomId).update({guessed:guessed,attempts:attempts});
+      if(localWord.includes(l)) {
+        db.ref("rooms/"+roomId+"/players/"+player).transaction(v=>(v||0)+1);
+      }
     };
-    letters.appendChild(b);
+    letters.appendChild(btn);
   });
+}
+
+// 🔹 Classement
+function renderLeaderboard(playersData){
+  const ul = document.getElementById("scores");
+  ul.innerHTML="";
+  for(let p in playersData){
+    const li = document.createElement("li");
+    li.textContent = `${p} : ${playersData[p]} pts`;
+    ul.appendChild(li);
+  }
+}
+
+// 🔹 Rejouer
+function restartGame() {
+  if(!roomId) return;
+  localWord = words[Math.floor(Math.random()*words.length)];
+  guessed=[];
+  attempts=6;
+  db.ref("rooms/"+roomId).update({word:localWord,guessed:[],attempts:6});
 }
 </script>
 
 </body>
 </html>
-
