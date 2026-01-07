@@ -5,7 +5,7 @@
 <title>Pendu Cowboy</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- 🔥 Firebase v8 (OBLIGATOIRE POUR HTML SIMPLE) -->
+<!-- Firebase v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
@@ -25,6 +25,9 @@ input, button {
 button {
     cursor:pointer;
 }
+#playersList {
+    margin-top: 20px;
+}
 </style>
 </head>
 
@@ -43,11 +46,12 @@ button {
 
 <p id="status"></p>
 
-<script>
-/* ================= FIREBASE CONFIG (DÉJÀ REMPLI) ================= */
+<div id="playersList"></div>
 
+<script>
+/* ================= FIREBASE CONFIG ================= */
 const firebaseConfig = {
-  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8bXQRbTDc",
+  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
   databaseURL: "https://cowboy-entre-amis-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cowboy-entre-amis",
@@ -56,18 +60,16 @@ const firebaseConfig = {
   appId: "1:561482687512:web:846729411c9158d3ea0f6d"
 };
 
-/* 🔥 INITIALISATION FIREBASE */
+/* 🔹 INITIALISATION */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ================= VARIABLES ================= */
-
 const words = ["cowboy","cheval","lasso","saloon"];
 let playerName = "";
 let roomId = "";
 
 /* ================= CRÉER UNE PARTIE ================= */
-
 function createRoom(){
     playerName = document.getElementById("playerName").value.trim();
     const totalGames = parseInt(document.getElementById("numGames").value) || 3;
@@ -92,13 +94,13 @@ function createRoom(){
     }).then(()=>{
         document.getElementById("status").innerText =
             "✅ Partie créée ! Code : " + roomId;
+        updatePlayersList();
     }).catch(err=>{
         alert("Erreur création : "+err.message);
     });
 }
 
 /* ================= REJOINDRE UNE PARTIE ================= */
-
 function joinRoom(){
     playerName = document.getElementById("playerName").value.trim();
     roomId = document.getElementById("roomIdInput").value.trim().toUpperCase();
@@ -108,30 +110,47 @@ function joinRoom(){
         return;
     }
 
-    db.ref("rooms/"+roomId).once("value").then(snap=>{
-        if(!snap.exists()){
-            alert("Partie introuvable");
+    const roomRef = db.ref("rooms/" + roomId);
+
+    roomRef.once("value")
+    .then(snapshot => {
+        if(!snapshot.exists()){
+            alert("Partie introuvable !");
             return;
         }
 
-        db.ref("rooms/"+roomId+"/players/"+playerName).set(true);
-        db.ref("rooms/"+roomId+"/scores/"+playerName).set(0);
+        const data = snapshot.val();
+
+        if(!data.players || !data.players[playerName]){
+            roomRef.child("players/" + playerName).set(true);
+            roomRef.child("scores/" + playerName).set(0);
+        }
 
         document.getElementById("status").innerText =
             "✅ Rejoint la partie " + roomId;
-    }).catch(err=>{
-        alert("Erreur rejoindre : "+err.message);
+
+        updatePlayersList();
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Erreur rejoindre : " + err.message);
+    });
+}
+
+/* ================= LISTE DES JOUEURS ================= */
+function updatePlayersList(){
+    if(!roomId) return;
+
+    const playersRef = db.ref("rooms/" + roomId + "/players");
+
+    playersRef.on("value", snapshot => {
+        const data = snapshot.val() || {};
+        const names = Object.keys(data);
+        document.getElementById("playersList").innerText =
+            "Joueurs dans la partie : " + names.join(", ");
     });
 }
 </script>
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// 🔹 TEST RAPIDE
-db.ref("TEST").set({ ok: true })
-  .then(() => alert("✅ Firebase OK"))
-  .catch(err => alert("❌ Firebase bloqué : " + err.message));
 
 </body>
 </html>
-
