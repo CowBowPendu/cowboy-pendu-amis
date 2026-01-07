@@ -170,6 +170,8 @@ function joinOrCreateGame() {
                 turnIndex = data.turnIndex;
             }
             generateLetterButtons();
+            displayWord();
+            drawHangman(maxAttempts - attemptsLeft);
         });
     });
 }
