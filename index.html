@@ -140,10 +140,8 @@ function joinRoom() {
                 data.players[playerName] = 0;
                 roomRef.child("players").set(data.players);
             }
-            // 🔹 Mettre la présence du joueur (pas onDisconnect pour GitHub Pages)
             userRef = roomRef.child(`presence/${playerName}`);
-            userRef.set(true);
-
+            userRef.set(true); // ✅ présence fonctionnelle sur GitHub Pages
             joinRoomUI();
         } else {
             alert("Partie introuvable !");
