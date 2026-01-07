@@ -280,20 +280,27 @@ function requestReplay(){
 function listenReplayRequests(){
     db.ref(`rooms/${roomId}/replayRequests`).on("value", snapshot => {
         const replayRequests = snapshot.val() || {};
-        // Vérifie la liste exacte des joueurs dans la room
+        // 🔹 Récupère TOUS les joueurs depuis Firebase
         db.ref("rooms/" + roomId + "/players").once("value").then(playersSnap => {
             const playersList = Object.keys(playersSnap.val() || {});
-            const allReady = playersList.every(p => replayRequests[p]);
+            // Si un joueur n'a pas encore de replayRequest, on l'ajoute à false
+            playersList.forEach(p => {
+                if(replayRequests[p] === undefined){
+                    db.ref(`rooms/${roomId}/replayRequests/${p}`).set(false);
+                    replayRequests[p] = false;
+                }
+            });
+
+            const allReady = playersList.every(p => replayRequests[p] === true);
 
             if(allReady){
-                // 🔹 tous ont cliqué → incrémente gamesPlayed
                 db.ref(`rooms/${roomId}/gamesPlayed`).transaction(n => {
                     const newVal = (n||0)+1;
-                    gamesPlayed = newVal; // met à jour localement
+                    gamesPlayed = newVal;
                     return newVal;
                 }).then(() => {
                     if(gamesPlayed < totalGames){
-                        restartGame(); // recommence une partie
+                        restartGame();
                     } else {
                         statusDiv.textContent = "🏆 Partie finale terminée ! Score global affiché ci-dessus";
                         replayBtn.style.display = "none";
@@ -303,6 +310,7 @@ function listenReplayRequests(){
         });
     });
 }
+
 
 function restartGame(){
     const word = words[Math.floor(Math.random()*words.length)];
@@ -320,3 +328,4 @@ function restartGame(){
 </script>
 </body>
 </html>
+
