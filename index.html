@@ -1,32 +1,33 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Pendu Cowboy</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Pendu Cowboy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Firebase v8 -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<!-- 🔥 Firebase v8 (OBLIGATOIRE POUR HTML SIMPLE) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #222;
-            color: #fff;
-            text-align: center;
-            padding: 30px;
-        }
-        input, button {
-            padding: 10px;
-            margin: 5px;
-            font-size: 16px;
-        }
-        button {
-            cursor: pointer;
-        }
-    </style>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background:#222;
+    color:#fff;
+    text-align:center;
+    padding:30px;
+}
+input, button {
+    padding:10px;
+    margin:5px;
+    font-size:16px;
+}
+button {
+    cursor:pointer;
+}
+</style>
 </head>
+
 <body>
 
 <h1>🤠 Pendu Cowboy</h1>
@@ -40,93 +41,86 @@
     <button onclick="joinRoom()">Rejoindre une partie</button>
 </div>
 
-<div id="status"></div>
+<p id="status"></p>
 
 <script>
-/* ================= FIREBASE CONFIG ================= */
+/* ================= FIREBASE CONFIG (DÉJÀ REMPLI) ================= */
 
 const firebaseConfig = {
-    apiKey: "REMPLACE_API_KEY",
-    authDomain: "REMPLACE.firebaseapp.com",
-    databaseURL: "https://REMPLACE-default-rtdb.firebaseio.com",
-    projectId: "REMPLACE",
-    storageBucket: "REMPLACE.appspot.com",
-    messagingSenderId: "REMPLACE",
-    appId: "REMPLACE"
+  apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8bXQRbTDc",
+  authDomain: "cowboy-entre-amis.firebaseapp.com",
+  databaseURL: "https://cowboy-entre-amis-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "cowboy-entre-amis",
+  storageBucket: "cowboy-entre-amis.firebasestorage.app",
+  messagingSenderId: "561482687512",
+  appId: "1:561482687512:web:846729411c9158d3ea0f6d"
 };
 
+/* 🔥 INITIALISATION FIREBASE */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ================= VARIABLES ================= */
 
-const words = ["cowboy", "cheval", "lasso", "saloon"];
+const words = ["cowboy","cheval","lasso","saloon"];
 let playerName = "";
 let roomId = "";
 
-/* ================= CREATE ROOM ================= */
+/* ================= CRÉER UNE PARTIE ================= */
 
-function createRoom() {
+function createRoom(){
     playerName = document.getElementById("playerName").value.trim();
     const totalGames = parseInt(document.getElementById("numGames").value) || 3;
 
-    if (!playerName) {
+    if(!playerName){
         alert("Pseudo obligatoire");
         return;
     }
 
-    roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const word = words[Math.floor(Math.random() * words.length)];
+    roomId = Math.random().toString(36).substring(2,8).toUpperCase();
+    const word = words[Math.floor(Math.random()*words.length)];
 
-    console.log("Création room :", roomId);
-
-    db.ref("rooms/" + roomId).set({
+    db.ref("rooms/"+roomId).set({
         word: word,
-        players: { [playerName]: true },
-        guessedLetters: {},
         attemptsLeft: 6,
         totalGames: totalGames,
         gamesPlayed: 0,
-        replayRequests: {},
-        scores: { [playerName]: 0 }
-    })
-    .then(() => {
+        guessedLetters: {},
+        players: { [playerName]: true },
+        scores: { [playerName]: 0 },
+        replayRequests: {}
+    }).then(()=>{
         document.getElementById("status").innerText =
             "✅ Partie créée ! Code : " + roomId;
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Erreur création : " + err.message);
+    }).catch(err=>{
+        alert("Erreur création : "+err.message);
     });
 }
 
-/* ================= JOIN ROOM ================= */
+/* ================= REJOINDRE UNE PARTIE ================= */
 
-function joinRoom() {
+function joinRoom(){
     playerName = document.getElementById("playerName").value.trim();
     roomId = document.getElementById("roomIdInput").value.trim().toUpperCase();
 
-    if (!playerName || !roomId) {
+    if(!playerName || !roomId){
         alert("Pseudo et code requis");
         return;
     }
 
-    db.ref("rooms/" + roomId).once("value")
-    .then(snapshot => {
-        if (!snapshot.exists()) {
+    db.ref("rooms/"+roomId).once("value").then(snap=>{
+        if(!snap.exists()){
             alert("Partie introuvable");
             return;
         }
 
-        db.ref("rooms/" + roomId + "/players/" + playerName).set(true);
-        db.ref("rooms/" + roomId + "/scores/" + playerName).set(0);
+        db.ref("rooms/"+roomId+"/players/"+playerName).set(true);
+        db.ref("rooms/"+roomId+"/scores/"+playerName).set(0);
 
         document.getElementById("status").innerText =
             "✅ Rejoint la partie " + roomId;
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Erreur rejoindre : " + err.message);
+    }).catch(err=>{
+        alert("Erreur rejoindre : "+err.message);
     });
 }
 </script>
