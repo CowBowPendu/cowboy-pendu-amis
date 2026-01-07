@@ -124,6 +124,14 @@ function joinRoom(){
     });
 }
 </script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// 🔹 TEST RAPIDE
+db.ref("TEST").set({ ok: true })
+  .then(() => alert("✅ Firebase OK"))
+  .catch(err => alert("❌ Firebase bloqué : " + err.message));
 
 </body>
 </html>
+
