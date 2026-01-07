@@ -39,7 +39,7 @@ body { font-family: Arial; background:#eee; text-align:center; }
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 FIREBASE
+// 🔥 CONFIG FIREBASE
 firebase.initializeApp({
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
@@ -68,17 +68,16 @@ function createRoom() {
   guessed = [];
   attempts = 6;
 
+  // Création simple avec joueur initial
   db.ref("rooms/"+roomId).set({
     word: localWord,
     guessed: [],
     attempts: 6,
     players: {[player]:0}
-  });
-
-  enterRoom();
+  }).then(()=>enterRoom());
 }
 
-// 🔹 Rejoindre
+// 🔹 Rejoindre une partie
 function joinRoom() {
   player = name.value.trim();
   roomId = roomInput.value.trim().toUpperCase();
@@ -86,11 +85,10 @@ function joinRoom() {
 
   db.ref("rooms/"+roomId).once("value").then(snap=>{
     if(!snap.exists()) return error.textContent="Partie introuvable";
-    // ajoute joueur si pas existant
     let data = snap.val();
+    if(!data.players) data.players = {};
     if(!data.players[player]) data.players[player]=0;
-    db.ref("rooms/"+roomId+"/players").set(data.players);
-    enterRoom();
+    db.ref("rooms/"+roomId+"/players").set(data.players).then(()=>enterRoom());
   });
 }
 
@@ -138,9 +136,6 @@ function renderLetters() {
       if(guessed.includes(l)) return;
       guessed.push(l);
       if(!localWord.includes(l)) attempts--;
-      // incrémente score si trouvé
-      let scoreUpdate = {};
-      if(localWord.includes(l)) scoreUpdate[player] = (document.getElementById("scores").dataset[player]||0)+1;
       db.ref("rooms/"+roomId).update({guessed:guessed,attempts:attempts});
       if(localWord.includes(l)) {
         db.ref("rooms/"+roomId+"/players/"+player).transaction(v=>(v||0)+1);
@@ -163,10 +158,9 @@ function renderLeaderboard(playersData){
 
 // 🔹 Rejouer
 function restartGame() {
-  if(!roomId) return;
   localWord = words[Math.floor(Math.random()*words.length)];
-  guessed=[];
-  attempts=6;
+  guessed = [];
+  attempts = 6;
   db.ref("rooms/"+roomId).update({word:localWord,guessed:[],attempts:6});
 }
 </script>
