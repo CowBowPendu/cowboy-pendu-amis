@@ -3,55 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cowboy Pendu Multijoueur Privé</title>
+<title>Cowboy Pendu Multijoueur 🤠</title>
 
 <style>
-body { font-family: Arial, sans-serif; background:#f0f0f0; margin:0; padding:0; display:flex; flex-direction:column; align-items:center;}
-header { background:#8b4513; color:white; padding:20px; width:100%; text-align:center;}
-main { display:flex; flex-wrap:wrap; justify-content:center; margin:20px; width:100%; max-width:1200px;}
-#game-container { flex:3; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); margin-bottom:20px;}
-#scoreboard { flex:1; margin-left:20px; min-width:200px; background:#fff8dc; padding:15px; border-radius:10px;}
-button { padding:10px 20px; margin:5px; border-radius:5px; border:none; cursor:pointer;}
-#word-display { font-size:2em; letter-spacing:10px; margin:20px 0; text-align:center;}
-#letters button { width:40px; height:40px; margin:2px;}
-#error-message { color:red; }
+body { font-family: Arial; background:#f0f0f0; margin:0; padding:0; text-align:center; }
+header { background:#8b4513; color:white; padding:15px; }
+#game { background:white; max-width:600px; margin:20px auto; padding:20px; border-radius:10px; }
+#word { font-size:2em; letter-spacing:8px; margin:20px; }
+#letters button { width:40px; height:40px; margin:3px; }
+#error { color:red; }
 </style>
 </head>
 
 <body>
 
 <header>
-<h1>Cowboy Pendu Multijoueur Privé 🤠</h1>
+<h1>Cowboy Pendu Multijoueur 🤠</h1>
 </header>
 
-<main>
-<div id="game-container">
+<div id="game">
 
-<div id="join-create">
-    <input id="player-name" placeholder="Votre pseudo">
-    <button onclick="createRoom()">Créer Partie</button><br><br>
-    <input id="room-id" placeholder="Code de la partie">
-    <button onclick="joinRoom()">Rejoindre Partie</button>
-    <p id="error-message"></p>
+<div id="menu">
+    <input id="name" placeholder="Pseudo"><br><br>
+    <button onclick="createRoom()">Créer une partie</button><br><br>
+    <input id="roomInput" placeholder="Code de la partie">
+    <button onclick="joinRoom()">Rejoindre</button>
+    <p id="error"></p>
 </div>
 
-<div id="room-info" style="display:none;">
-    <p id="current-room"></p>
-    <div id="word-display"></div>
+<div id="room" style="display:none;">
+    <p id="roomCode"></p>
+    <div id="word"></div>
     <div id="letters"></div>
     <p id="status"></p>
     <button onclick="location.reload()">Quitter</button>
 </div>
 
 </div>
-</main>
 
-<!-- FIREBASE SDK -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔹 FIREBASE CONFIG (CORRIGÉE)
+// 🔥 CONFIG FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyCa4qa1JbAC8ZevEjjsTjtAHp8XQRbTDc",
   authDomain: "cowboy-entre-amis.firebaseapp.com",
@@ -65,92 +60,87 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// 🔹 VARIABLES
+// 🎮 VARIABLES
 const words = ["cowboy","cheval","lasso","saloon","pistolet"];
 let roomId = "";
-let playerName = "";
+let player = "";
 
-// 🔹 CREATE ROOM
+// 🆕 CRÉER PARTIE
 function createRoom() {
-    playerName = document.getElementById("player-name").value.trim();
-    if (!playerName) {
-        document.getElementById("error-message").textContent = "Entre un pseudo";
-        return;
-    }
+    player = name.value.trim();
+    if (!player) return error.textContent = "Entre un pseudo";
 
     roomId = Math.random().toString(36).substring(2,8).toUpperCase();
     const word = words[Math.floor(Math.random()*words.length)];
 
     db.ref("rooms/" + roomId).set({
         word: word,
-        players: { [playerName]: 0 },
         guessed: [],
         attempts: 6
-    }).then(() => {
-        enterRoom();
-    }).catch(err => {
-        alert("Erreur Firebase");
-        console.error(err);
-    });
+    }).then(enterRoom);
 }
 
-// 🔹 JOIN ROOM
+// 🔑 REJOINDRE
 function joinRoom() {
-    playerName = document.getElementById("player-name").value.trim();
-    roomId = document.getElementById("room-id").value.toUpperCase();
-
-    if (!playerName || !roomId) return;
+    player = name.value.trim();
+    roomId = roomInput.value.trim().toUpperCase();
+    if (!player || !roomId) return;
 
     db.ref("rooms/" + roomId).once("value").then(snap => {
-        if (!snap.exists()) {
-            alert("Partie introuvable");
-            return;
-        }
-        db.ref(`rooms/${roomId}/players/${playerName}`).set(0);
+        if (!snap.exists()) return error.textContent = "Partie introuvable";
         enterRoom();
     });
 }
 
-// 🔹 ENTER ROOM
+// 🚪 ENTRER DANS LA ROOM
 function enterRoom() {
-    document.getElementById("join-create").style.display = "none";
-    document.getElementById("room-info").style.display = "block";
-    document.getElementById("current-room").textContent = "Code : " + roomId;
+    menu.style.display = "none";
+    room.style.display = "block";
+    roomCode.textContent = "Code : " + roomId;
 
     db.ref("rooms/" + roomId).on("value", snap => {
         const data = snap.val();
         if (!data) return;
 
+        // 🔤 MOT
         let display = "";
         for (let l of data.word) {
-            display += data.guessed.includes(l) ? l+" " : "_ ";
+            display += data.guessed.includes(l) ? l + " " : "_ ";
         }
-        document.getElementById("word-display").textContent = display;
+        word.textContent = display;
 
-        const lettersDiv = document.getElementById("letters");
-        lettersDiv.innerHTML = "";
+        // 🧠 STATUT
+        if (data.attempts <= 0) {
+            status.textContent = "💀 Perdu ! Mot : " + data.word;
+        } else if (!display.includes("_")) {
+            status.textContent = "🎉 Gagné !";
+        } else {
+            status.textContent = "Essais restants : " + data.attempts;
+        }
 
+        // 🔘 LETTRES
+        letters.innerHTML = "";
         "abcdefghijklmnopqrstuvwxyz".split("").forEach(letter => {
             const btn = document.createElement("button");
             btn.textContent = letter;
-            btn.disabled = data.guessed.includes(letter);
+            btn.disabled = data.guessed.includes(letter) || data.attempts <= 0;
 
             btn.onclick = () => {
-                data.guessed.push(letter);
-                if (!data.word.includes(letter)) data.attempts--;
+                if (data.guessed.includes(letter)) return;
+
+                const guessed = [...data.guessed, letter];
+                const attempts = data.word.includes(letter)
+                    ? data.attempts
+                    : data.attempts - 1;
+
                 db.ref("rooms/" + roomId).update({
-                    guessed: data.guessed,
-                    attempts: data.attempts
+                    guessed: guessed,
+                    attempts: attempts
                 });
             };
 
-            lettersDiv.appendChild(btn);
+            letters.appendChild(btn);
         });
-
-        document.getElementById("status").textContent =
-            data.attempts <= 0 ? "💀 Perdu !" :
-            !display.includes("_") ? "🎉 Gagné !" :
-            "Essais restants : " + data.attempts;
     });
 }
 </script>
