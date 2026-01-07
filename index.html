@@ -3,25 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cowboy Pendu Multijoueur 🎯</title>
+<title>Cowboy Pendu Multijoueur</title>
 
-<!-- AdSense -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9912335877113055"
      crossorigin="anonymous"></script>
 
 <style>
 body {font-family: Arial, sans-serif; background:#f0f0f0; margin:0; padding:0; display:flex; flex-direction:column; align-items:center;}
 header {background:#8b4513; color:white; padding:20px; width:100%; text-align:center;}
-main {display:flex; flex-direction:row; justify-content:center; margin:20px; width:100%; max-width:1200px;}
-#game-container {flex:3; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); min-height:500px; display:flex; flex-direction:column; align-items:center;}
-#word-display {font-size:2em; letter-spacing:10px; margin:20px 0;}
-#letters button {width:40px; height:40px; margin:2px; font-weight:bold; font-size:1em; border:2px solid #333;}
+main {display:flex; flex-direction:column; justify-content:center; margin:20px; width:100%; max-width:800px; align-items:center;}
+#home, #game-container {background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.2); margin:10px; width:100%;}
 button {padding:10px 20px; margin:5px; border-radius:5px; border:none; cursor:pointer; font-weight:bold;}
 button:hover {opacity:0.8;}
-.player-label {display:inline-block; padding:3px 8px; margin-right:5px; border-radius:5px; color:white; font-weight:bold;}
-#scoreboard, #ads {flex:1; margin-left:20px;}
-#scoreboard {background:#fff8dc; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-#ads {background:#e6e6e6; padding:15px; border-radius:10px; text-align:center;}
+#word-display {font-size:2em; letter-spacing:10px; margin:20px 0;}
+#letters button {width:40px; height:40px; margin:2px; font-weight:bold;}
+.player-label {display:inline-block; padding:3px 8px; margin:2px; border-radius:5px; color:white; font-weight:bold;}
+#leaderboard {margin-top:10px;}
+#turn-info {margin:10px 0; font-weight:bold;}
 </style>
 </head>
 <body>
@@ -31,42 +29,31 @@ button:hover {opacity:0.8;}
 </header>
 
 <main>
-<div id="game-container">
-    <canvas id="hangman-canvas" width="200" height="250" style="background-color:#f0f0f0;border:1px solid #333"></canvas>
-    <div id="word-display">_ _ _ _ _</div>
-    <div id="letters"></div>
-    <div id="status"></div>
-    <p id="turn-info"></p>
-    <button id="new-game">Nouvelle Partie</button>
+<div id="home">
+  <p>Entrez votre pseudo :</p>
+  <input type="text" id="player-name" placeholder="Pseudo">
+  <p>Nom de la partie :</p>
+  <input type="text" id="game-name" placeholder="Nom partie">
+  <div>
+    <button id="create-game">Créer Partie</button>
+    <button id="join-game">Rejoindre Partie</button>
+  </div>
 </div>
 
-<div id="scoreboard">
-<h2>Classement</h2>
-<ul id="leaderboard"></ul>
-<h3>Joueurs connectés</h3>
-<div id="players-list"></div>
-</div>
-
-<div id="ads">
-<h3>Publicités / Dons</h3>
-<button onclick="alert('Merci pour le soutien !')">Faire un don</button>
-<p>Annonce sponsorisée ici</p>
-
-<!-- Bloc AdSense -->
-<ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-9912335877113055"
-     data-ad-slot="1234567890"
-     data-ad-format="auto"
-     data-full-width-responsive="true"></ins>
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-
+<div id="game-container" style="display:none;">
+  <canvas id="hangman-canvas" width="200" height="250" style="border:1px solid #333; background:#f0f0f0;"></canvas>
+  <div id="word-display">_ _ _ _ _</div>
+  <div id="letters"></div>
+  <div id="status"></div>
+  <p id="turn-info"></p>
+  <h3>Joueurs :</h3>
+  <div id="players-list"></div>
+  <h3>Classement :</h3>
+  <ul id="leaderboard"></ul>
+  <button id="new-game">Nouvelle Partie</button>
 </div>
 </main>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -91,13 +78,10 @@ let currentWord = "";
 let guessedLetters = [];
 let maxAttempts = 6;
 let attemptsLeft = maxAttempts;
-let isFalling = false;
+let player, playerColor, gameName, players=[], turnIndex=0;
 
-let player = prompt("Entrez votre pseudo :") || "Joueur";
-let playerColor = "#"+Math.floor(Math.random()*16777215).toString(16);
-let players = [];
-let turnIndex = 0;
-
+const homeDiv = document.getElementById("home");
+const gameDiv = document.getElementById("game-container");
 const wordDisplay = document.getElementById("word-display");
 const lettersDiv = document.getElementById("letters");
 const leaderboard = document.getElementById("leaderboard");
@@ -113,186 +97,133 @@ const soundWin = new Audio("https://actions.google.com/sounds/v1/cartoon/clang.o
 const soundLose = new Audio("https://actions.google.com/sounds/v1/cartoon/metal_clang.ogg");
 
 // --- Dessin pendu ---
-function drawHangman(errors, fallProgress=0){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.strokeStyle="#333";
-    ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(20,230); ctx.lineTo(180,230);
-    ctx.moveTo(50,230); ctx.lineTo(50,20); ctx.lineTo(130,20); ctx.lineTo(130,50); ctx.stroke();
-
-    let headY=70+fallProgress, bodyY=90+fallProgress, limbY=150+fallProgress;
-
-    if(errors>0){ctx.beginPath(); ctx.arc(130,headY,20,0,Math.PI*2); ctx.stroke();}
-    if(errors>1){ctx.beginPath(); ctx.moveTo(130,bodyY); ctx.lineTo(130,limbY); ctx.stroke();}
-    if(errors>2){ctx.beginPath(); ctx.moveTo(130,100+fallProgress); ctx.lineTo(100,130+fallProgress); ctx.stroke();}
-    if(errors>3){ctx.beginPath(); ctx.moveTo(130,100+fallProgress); ctx.lineTo(160,130+fallProgress); ctx.stroke();}
-    if(errors>4){ctx.beginPath(); ctx.moveTo(130,limbY); ctx.lineTo(100,190+fallProgress); ctx.stroke();}
-    if(errors>5){ctx.beginPath(); ctx.moveTo(130,limbY); ctx.lineTo(160,190+fallProgress); ctx.stroke();}
+function drawHangman(errors){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle="#333"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(20,230); ctx.lineTo(180,230);
+  ctx.moveTo(50,230); ctx.lineTo(50,20); ctx.lineTo(130,20); ctx.lineTo(130,50); ctx.stroke();
+  if(errors>0){ctx.beginPath();ctx.arc(130,70,20,0,2*Math.PI);ctx.stroke();}
+  if(errors>1){ctx.beginPath();ctx.moveTo(130,90);ctx.lineTo(130,150);ctx.stroke();}
+  if(errors>2){ctx.beginPath();ctx.moveTo(130,100);ctx.lineTo(100,130);ctx.stroke();}
+  if(errors>3){ctx.beginPath();ctx.moveTo(130,100);ctx.lineTo(160,130);ctx.stroke();}
+  if(errors>4){ctx.beginPath();ctx.moveTo(130,150);ctx.lineTo(100,190);ctx.stroke();}
+  if(errors>5){ctx.beginPath();ctx.moveTo(130,150);ctx.lineTo(160,190);ctx.stroke();}
 }
 
-// --- Animation chute ---
-function animateFall(){
-    if(isFalling) return;
-    isFalling=true;
-    let progress=0;
-    const interval = setInterval(()=>{
-        progress+=2;
-        drawHangman(maxAttempts,progress);
-        if(progress>=80){clearInterval(interval); soundLose.play();}
-    },50);
-}
-
-// --- Rejoindre ou créer la partie ---
-function joinOrCreateGame() {
-    db.ref("players").once("value").then(snap=>{
-        players = snap.val()||[];
-        if(!players.some(p=>p.name===player)){
-            players.push({name:player,color:playerColor});
-            db.ref("players").set(players);
-        }
-        updatePlayersDisplay();
-
-        db.ref("game").once("value").then(snap=>{
-            if(!snap.exists()){
-                currentWord = words[Math.floor(Math.random()*words.length)];
-                db.ref("game").set({
-                    currentWord: currentWord,
-                    guessedLetters: [],
-                    attemptsLeft: maxAttempts,
-                    turnIndex: 0,
-                    gameOver: false
-                });
-            } else {
-                const data = snap.val();
-                currentWord = data.currentWord;
-                guessedLetters = data.guessedLetters;
-                attemptsLeft = data.attemptsLeft;
-                turnIndex = data.turnIndex;
-            }
-            generateLetterButtons();
-        });
-    });
-}
-
-// --- Lettres ---
-function generateLetterButtons(){
-    lettersDiv.innerHTML="";
-    for(let c=97;c<=122;c++){
-        const letter = String.fromCharCode(c);
-        const btn = document.createElement("button");
-        btn.textContent = letter;
-        btn.onclick = () => {
-            const currentPlayer = players[turnIndex];
-            if(!currentPlayer || currentPlayer.name !== player) {
-                alert("Ce n'est pas votre tour !");
-                return;
-            }
-            if(guessedLetters.includes(letter)) return;
-
-            const incorrect = !currentWord.includes(letter);
-            const updatedLetters = [...guessedLetters, letter];
-            const updatedAttempts = attemptsLeft - (incorrect ? 1 : 0);
-            const gameOver = updatedAttempts <= 0 || !currentWord.split("").some(l => updatedLetters.includes(l) === false);
-            const nextTurn = (turnIndex + 1) % players.length;
-
-            // --- Met à jour Firebase ---
-            db.ref("game").update({
-                guessedLetters: updatedLetters,
-                attemptsLeft: updatedAttempts,
-                turnIndex: nextTurn,
-                gameOver: gameOver
-            });
-
-            btn.disabled = true;
-        };
-        lettersDiv.appendChild(btn);
-    }
-}
-
-// --- Affichage mot ---
+// --- Afficher mot ---
 function displayWord(){
-    let display="";
-    for(let l of currentWord){
-        display += guessedLetters.includes(l) ? l+" " : "_ ";
-    }
-    wordDisplay.textContent = display.trim();
+  let display="";
+  for(let l of currentWord){
+    display += guessedLetters.includes(l) ? l+" " : "_ ";
+  }
+  wordDisplay.textContent = display.trim();
 }
 
-// --- Scores ---
-function saveScore(){
-    const score = maxAttempts - attemptsLeft;
-    db.ref("scores/"+player).set(score);
-    updateLeaderboard();
+// --- Générer lettres ---
+function generateLetterButtons(){
+  lettersDiv.innerHTML="";
+  for(let c=97;c<=122;c++){
+    const letter = String.fromCharCode(c);
+    const btn=document.createElement("button");
+    btn.textContent=letter;
+    btn.onclick=()=>guessLetter(letter, btn);
+    lettersDiv.appendChild(btn);
+  }
 }
 
-function updateLeaderboard(){
-    db.ref("scores").once("value").then(snapshot=>{
-        const data = snapshot.val()||{};
-        leaderboard.innerHTML="";
-        Object.entries(data).sort((a,b)=>b[1]-a[1]).forEach(([name,score])=>{
-            const li = document.createElement("li");
-            li.textContent = `${name} : ${score} pts`;
-            leaderboard.appendChild(li);
-        });
-    });
+// --- Guess lettre ---
+function guessLetter(letter, btn){
+  const currentPlayer = players[turnIndex];
+  if(!currentPlayer || currentPlayer.name!==player) { alert("Ce n'est pas votre tour !"); return; }
+  if(guessedLetters.includes(letter)) return;
+  const incorrect = !currentWord.includes(letter);
+  const updatedLetters=[...guessedLetters, letter];
+  const updatedAttempts=attemptsLeft - (incorrect ? 1 : 0);
+  const gameOver = updatedAttempts<=0 || !currentWord.split("").some(l => updatedLetters.includes(l)===false);
+  const nextTurn=(turnIndex+1)%players.length;
+
+  db.ref(`games/${gameName}`).update({
+    guessedLetters: updatedLetters,
+    attemptsLeft: updatedAttempts,
+    turnIndex: nextTurn,
+    gameOver: gameOver
+  });
+
+  btn.disabled=true;
 }
 
-// --- Firebase temps réel ---
-db.ref("game").on("value", snap=>{
-    const game = snap.val();
-    if(!game) return;
+// --- Créer ou rejoindre partie ---
+function startGame(isNew){
+  player=document.getElementById("player-name").value||"Joueur";
+  playerColor="#"+Math.floor(Math.random()*16777215).toString(16);
+  gameName=document.getElementById("game-name").value||"DefaultGame";
 
-    currentWord = game.currentWord;
-    guessedLetters = game.guessedLetters;
-    attemptsLeft = game.attemptsLeft;
-    turnIndex = game.turnIndex;
-
-    displayWord();
-    drawHangman(maxAttempts - attemptsLeft);
-
-    const currentPlayer = players[turnIndex];
-    turnInfo.textContent = "Tour du joueur " + (currentPlayer ? currentPlayer.name : "?");
-
-    if(game.gameOver){
-        lettersDiv.querySelectorAll("button").forEach(b => b.disabled = true);
-        if(attemptsLeft <= 0){
-            animateFall();
-            statusDiv.textContent = `💀 Partie terminée, le mot était "${currentWord}"`;
-        } else {
-            soundWin.play();
-            statusDiv.textContent = `🎉 Partie terminée, le mot a été trouvé !`;
-        }
-    }
-
-    saveScore();
-});
-
-db.ref("players").on("value", snap=>{
+  // Ajouter joueur
+  db.ref(`games/${gameName}/players`).once("value").then(snap=>{
     players = snap.val()||[];
-    updatePlayersDisplay();
-});
+    if(!players.some(p=>p.name===player)){
+      players.push({name:player,color:playerColor});
+      db.ref(`games/${gameName}/players`).set(players);
+    }
+  });
 
-function updatePlayersDisplay(){
-    playersListDiv.innerHTML="";
-    players.forEach(p=>{
-        const span=document.createElement("span");
-        span.textContent=p.name;
-        span.className="player-label";
-        span.style.backgroundColor=p.color;
-        playersListDiv.appendChild(span);
+  // Créer partie si nouvelle
+  if(isNew){
+    currentWord = words[Math.floor(Math.random()*words.length)];
+    db.ref(`games/${gameName}`).set({
+      currentWord: currentWord,
+      guessedLetters: [],
+      attemptsLeft: maxAttempts,
+      turnIndex: 0,
+      gameOver: false
     });
+  }
+
+  homeDiv.style.display="none";
+  gameDiv.style.display="block";
+  generateLetterButtons();
 }
 
-document.getElementById("new-game").onclick = ()=>{
-    db.ref("game").remove();
-    isFalling=false;
-    joinOrCreateGame();
-};
+// --- Listener temps réel ---
+db.ref(`games`).on("value", snap=>{
+  if(!gameName) return;
+  const gameSnap = snap.val()[gameName];
+  if(!gameSnap) return;
 
-// --- Init ---
-joinOrCreateGame();
-updateLeaderboard();
+  currentWord = gameSnap.currentWord;
+  guessedLetters = gameSnap.guessedLetters;
+  attemptsLeft = gameSnap.attemptsLeft;
+  turnIndex = gameSnap.turnIndex;
+  displayWord();
+  drawHangman(maxAttempts - attemptsLeft);
+
+  // Joueurs
+  players = gameSnap.players || [];
+  playersListDiv.innerHTML="";
+  players.forEach(p=>{
+    const span=document.createElement("span");
+    span.textContent=p.name; span.className="player-label"; span.style.backgroundColor=p.color;
+    playersListDiv.appendChild(span);
+  });
+
+  // Tour joueur
+  const currentPlayer = players[turnIndex];
+  turnInfo.textContent = currentPlayer ? `Tour du joueur ${currentPlayer.name}` : "";
+
+  lettersDiv.querySelectorAll("button").forEach(b=>{
+    b.disabled = guessedLetters.includes(b.textContent) || gameSnap.gameOver || !currentPlayer || currentPlayer.name!==player;
+  });
+
+  if(gameSnap.gameOver){
+    if(attemptsLeft<=0){ soundLose.play(); statusDiv.textContent=`💀 Partie terminée, le mot était "${currentWord}"`; }
+    else { soundWin.play(); statusDiv.textContent=`🎉 Partie terminée, le mot a été trouvé !`; }
+  }
+});
+
+// --- Boutons ---
+document.getElementById("create-game").onclick = ()=>startGame(true);
+document.getElementById("join-game").onclick = ()=>startGame(false);
+document.getElementById("new-game").onclick = ()=>startGame(true);
 </script>
-
 </body>
 </html>
