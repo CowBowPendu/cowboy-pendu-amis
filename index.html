@@ -86,7 +86,7 @@ let attemptsLeft = 6;
 let players = [];
 let turn = 0;
 let userRef = null;
-let replayRequests = {}; // pour le bouton Rejouer
+let replayRequests = {}; 
 
 // 🔹 ÉLÉMENTS UI
 const wordDisplay = document.getElementById("word-display");
@@ -119,10 +119,7 @@ function createRoom() {
         turn: 0,
         presence: {[playerName]: true},
         replayRequests: {}
-    });
-    userRef = db.ref(`rooms/${roomId}/presence/${playerName}`);
-    userRef.set(true);
-    joinRoomUI();
+    }).then(() => joinRoomUI());
 }
 
 function joinRoom() {
