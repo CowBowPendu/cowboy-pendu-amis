@@ -170,57 +170,11 @@ function joinOrCreateGame() {
                 turnIndex = data.turnIndex;
             }
             generateLetterButtons();
-            displayWord();
-            drawHangman(maxAttempts - attemptsLeft);
         });
     });
 }
 
 // --- Lettres ---
-function guessLetter(letter){
-    db.ref("game").once("value").then(snap=>{
-        const game = snap.val();
-        if(!game || game.gameOver) return;
-
-        const currentPlayer = players[game.turnIndex];
-        if(!currentPlayer || currentPlayer.name !== player){
-            alert("Ce n'est pas votre tour !");
-            return;
-        }
-
-        if(game.guessedLetters.includes(letter)) return;
-
-        let updatedLetters = [...game.guessedLetters, letter];
-        let updatedAttempts = game.attemptsLeft;
-        if(!game.currentWord.includes(letter)) { 
-            updatedAttempts--; 
-            soundWrong.play(); 
-        }
-
-        let nextTurn = (game.turnIndex + 1) % players.length;
-        let gameOver = false;
-        if(updatedAttempts <= 0 || !game.currentWord.split("").some(l => !updatedLetters.includes(l))) {
-            gameOver = true;
-        }
-
-        // --- Met à jour Firebase ---
-        db.ref("game").update({
-            guessedLetters: updatedLetters,
-            attemptsLeft: updatedAttempts,
-            turnIndex: nextTurn,
-            gameOver: gameOver
-        }).then(()=>{
-            // --- Met à jour la variable locale et l'affichage immédiatement ---
-            guessedLetters = updatedLetters;
-            attemptsLeft = updatedAttempts;
-            currentWord = game.currentWord;
-            displayWord();
-            drawHangman(maxAttempts - attemptsLeft);
-        });
-    });
-}
-
-
 function generateLetterButtons(){
     lettersDiv.innerHTML="";
     for(let c=97;c<=122;c++){
@@ -228,8 +182,28 @@ function generateLetterButtons(){
         const btn = document.createElement("button");
         btn.textContent = letter;
         btn.onclick = () => {
+            const currentPlayer = players[turnIndex];
+            if(!currentPlayer || currentPlayer.name !== player) {
+                alert("Ce n'est pas votre tour !");
+                return;
+            }
+            if(guessedLetters.includes(letter)) return;
+
+            const incorrect = !currentWord.includes(letter);
+            const updatedLetters = [...guessedLetters, letter];
+            const updatedAttempts = attemptsLeft - (incorrect ? 1 : 0);
+            const gameOver = updatedAttempts <= 0 || !currentWord.split("").some(l => updatedLetters.includes(l) === false);
+            const nextTurn = (turnIndex + 1) % players.length;
+
+            // --- Met à jour Firebase ---
+            db.ref("game").update({
+                guessedLetters: updatedLetters,
+                attemptsLeft: updatedAttempts,
+                turnIndex: nextTurn,
+                gameOver: gameOver
+            });
+
             btn.disabled = true;
-            guessLetter(letter);
         };
         lettersDiv.appendChild(btn);
     }
@@ -242,21 +216,6 @@ function displayWord(){
         display += guessedLetters.includes(l) ? l+" " : "_ ";
     }
     wordDisplay.textContent = display.trim();
-}
-
-// --- Fin partie ---
-function checkGameOver(){
-    db.ref("game/gameOver").once("value").then(snap=>{
-        if(snap.val()){
-            if(attemptsLeft<=0){
-                animateFall();
-                statusDiv.textContent = `💀 Partie terminée, le mot était "${currentWord}"`;
-            } else {
-                soundWin.play();
-                statusDiv.textContent = `🎉 Partie terminée, le mot a été trouvé !`;
-            }
-        }
-    });
 }
 
 // --- Scores ---
@@ -295,7 +254,8 @@ db.ref("game").on("value", snap=>{
     turnInfo.textContent = "Tour du joueur " + (currentPlayer ? currentPlayer.name : "?");
 
     if(game.gameOver){
-        if(attemptsLeft<=0){
+        lettersDiv.querySelectorAll("button").forEach(b => b.disabled = true);
+        if(attemptsLeft <= 0){
             animateFall();
             statusDiv.textContent = `💀 Partie terminée, le mot était "${currentWord}"`;
         } else {
@@ -336,4 +296,3 @@ updateLeaderboard();
 
 </body>
 </html>
-
