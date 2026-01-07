@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Pendu Cowboy</title>
+<title>Pendu Cowboy Multijoueur</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Firebase v8 -->
@@ -10,43 +10,35 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background:#222;
-    color:#fff;
-    text-align:center;
-    padding:30px;
-}
-input, button {
-    padding:10px;
-    margin:5px;
-    font-size:16px;
-}
-button {
-    cursor:pointer;
-}
-#playersList {
-    margin-top: 20px;
-}
+body { font-family: Arial, sans-serif; background:#222; color:#fff; text-align:center; padding:20px; }
+input, button { padding:10px; margin:5px; font-size:16px; }
+button { cursor:pointer; }
+#wordDisplay { font-size:2em; letter-spacing:10px; margin:20px 0; }
+#letters button { width:40px; height:40px; margin:2px; }
+#playersList { margin-top:10px; }
+#replayButton { display:none; margin-top:15px; }
 </style>
 </head>
 
 <body>
 
-<h1>🤠 Pendu Cowboy</h1>
+<h1>🤠 Pendu Cowboy Multijoueur</h1>
 
 <div id="menu">
     <input id="playerName" placeholder="Pseudo">
     <input id="roomIdInput" placeholder="Code partie">
     <input id="numGames" type="number" value="3" min="1">
     <br>
-    <button onclick="createRoom()">Créer une partie</button>
-    <button onclick="joinRoom()">Rejoindre une partie</button>
+    <button onclick="createRoom()">Créer Partie</button>
+    <button onclick="joinRoom()">Rejoindre Partie</button>
 </div>
 
 <p id="status"></p>
-
+<p id="turnInfo"></p>
+<div id="wordDisplay">_ _ _ _ _</div>
+<div id="letters"></div>
 <div id="playersList"></div>
+<button id="replayButton" onclick="requestReplay()">Demander Rejouer</button>
 
 <script>
 /* ================= FIREBASE CONFIG ================= */
@@ -59,8 +51,6 @@ const firebaseConfig = {
   messagingSenderId: "561482687512",
   appId: "1:561482687512:web:846729411c9158d3ea0f6d"
 };
-
-/* 🔹 INITIALISATION */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -68,87 +58,176 @@ const db = firebase.database();
 const words = ["cowboy","cheval","lasso","saloon"];
 let playerName = "";
 let roomId = "";
+let currentWord = "";
+let guessedLetters = [];
+let attemptsLeft = 6;
+let players = [];
+let turn = 0;
+let totalGames = 3;
+let gamesPlayed = 0;
 
-/* ================= CRÉER UNE PARTIE ================= */
-function createRoom(){
+/* ================= CRÉER PARTIE ================= */
+function createRoom() {
     playerName = document.getElementById("playerName").value.trim();
-    const totalGames = parseInt(document.getElementById("numGames").value) || 3;
-
-    if(!playerName){
-        alert("Pseudo obligatoire");
-        return;
-    }
-
+    totalGames = parseInt(document.getElementById("numGames").value) || 3;
+    if(!playerName){ alert("Pseudo obligatoire"); return; }
     roomId = Math.random().toString(36).substring(2,8).toUpperCase();
-    const word = words[Math.floor(Math.random()*words.length)];
+    currentWord = words[Math.floor(Math.random()*words.length)];
+    guessedLetters = [];
+    attemptsLeft = 6;
+    players = [playerName];
+    turn = 0;
+    gamesPlayed = 0;
 
     db.ref("rooms/"+roomId).set({
-        word: word,
-        attemptsLeft: 6,
-        totalGames: totalGames,
-        gamesPlayed: 0,
+        word: currentWord,
         guessedLetters: {},
+        attemptsLeft: attemptsLeft,
         players: { [playerName]: true },
         scores: { [playerName]: 0 },
+        turn: 0,
+        totalGames: totalGames,
+        gamesPlayed: 0,
         replayRequests: {}
     }).then(()=>{
-        document.getElementById("status").innerText =
-            "✅ Partie créée ! Code : " + roomId;
-        updatePlayersList();
-    }).catch(err=>{
-        alert("Erreur création : "+err.message);
-    });
+        document.getElementById("status").innerText = "✅ Partie créée ! Code : "+roomId;
+        joinRoomUI();
+    }).catch(err=>alert("Erreur création: "+err.message));
 }
 
-/* ================= REJOINDRE UNE PARTIE ================= */
-function joinRoom(){
+/* ================= REJOINDRE PARTIE ================= */
+function joinRoom() {
     playerName = document.getElementById("playerName").value.trim();
     roomId = document.getElementById("roomIdInput").value.trim().toUpperCase();
-
-    if(!playerName || !roomId){
-        alert("Pseudo et code requis");
-        return;
-    }
-
-    const roomRef = db.ref("rooms/" + roomId);
-
-    roomRef.once("value")
-    .then(snapshot => {
-        if(!snapshot.exists()){
-            alert("Partie introuvable !");
-            return;
-        }
-
+    if(!playerName || !roomId){ alert("Pseudo et code requis"); return; }
+    const roomRef = db.ref("rooms/"+roomId);
+    roomRef.once("value").then(snapshot=>{
+        if(!snapshot.exists()){ alert("Partie introuvable !"); return; }
         const data = snapshot.val();
-
-        if(!data.players || !data.players[playerName]){
-            roomRef.child("players/" + playerName).set(true);
-            roomRef.child("scores/" + playerName).set(0);
+        if(!data.players[playerName]){
+            roomRef.child("players/"+playerName).set(true);
+            roomRef.child("scores/"+playerName).set(0);
         }
+        joinRoomUI();
+    }).catch(err=>alert("Erreur rejoindre: "+err.message));
+}
 
-        document.getElementById("status").innerText =
-            "✅ Rejoint la partie " + roomId;
+/* ================= JOINDRE L'UI ================= */
+function joinRoomUI() {
+    document.getElementById("menu").style.display = "none";
+    listenRoom();
+}
 
+/* ================= ÉCOUTE FIREBASE ================= */
+function listenRoom() {
+    const roomRef = db.ref("rooms/"+roomId);
+    roomRef.on("value", snapshot=>{
+        const data = snapshot.val();
+        if(!data) return;
+        currentWord = data.word;
+        guessedLetters = Object.keys(data.guessedLetters || {});
+        attemptsLeft = data.attemptsLeft;
+        players = Object.keys(data.players || {});
+        turn = data.turn || 0;
+        totalGames = data.totalGames || 3;
+        gamesPlayed = data.gamesPlayed || 0;
+
+        updateWordDisplay();
+        generateLetterButtons();
+        updateTurnInfo();
         updatePlayersList();
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Erreur rejoindre : " + err.message);
+
+        checkGameOver(data);
     });
 }
 
-/* ================= LISTE DES JOUEURS ================= */
+/* ================= AFFICHAGE MOT ================= */
+function updateWordDisplay() {
+    let display = "";
+    for(let l of currentWord) display += guessedLetters.includes(l)? l+" ":"_ ";
+    document.getElementById("wordDisplay").textContent = display.trim();
+}
+
+/* ================= BOUTONS LETTRES ================= */
+function generateLetterButtons() {
+    const lettersDiv = document.getElementById("letters");
+    lettersDiv.innerHTML="";
+    const activePlayer = players[turn % players.length];
+    if(activePlayer!==playerName) return;
+    const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+    for(let letter of alphabet){
+        const btn = document.createElement("button");
+        btn.textContent = letter;
+        if(guessedLetters.includes(letter)) btn.disabled=true;
+        btn.onclick = ()=>{
+            guessedLetters.push(letter);
+            if(!currentWord.includes(letter)) attemptsLeft--;
+            db.ref("rooms/"+roomId+"/guessedLetters/"+letter).set(true);
+            db.ref("rooms/"+roomId+"/attemptsLeft").set(attemptsLeft);
+            db.ref("rooms/"+roomId+"/turn").set(turn+1);
+        };
+        lettersDiv.appendChild(btn);
+    }
+}
+
+/* ================= INFO TOUR ================= */
+function updateTurnInfo(){
+    const activePlayer = players[turn % players.length];
+    document.getElementById("turnInfo").textContent = "Tour actuel: "+activePlayer + (activePlayer===playerName ? " (C'est votre tour!)":"");
+}
+
+/* ================= LISTE JOUEURS ================= */
 function updatePlayersList(){
-    if(!roomId) return;
-
-    const playersRef = db.ref("rooms/" + roomId + "/players");
-
-    playersRef.on("value", snapshot => {
-        const data = snapshot.val() || {};
-        const names = Object.keys(data);
-        document.getElementById("playersList").innerText =
-            "Joueurs dans la partie : " + names.join(", ");
+    db.ref("rooms/"+roomId+"/players").once("value").then(snap=>{
+        const data = snap.val() || {};
+        document.getElementById("playersList").textContent = "Joueurs: "+Object.keys(data).join(", ");
     });
+}
+
+/* ================= CHECK FIN ================= */
+function checkGameOver(data){
+    const won = !document.getElementById("wordDisplay").textContent.includes("_");
+    const lost = attemptsLeft<=0;
+
+    if(won || lost){
+        if(won) alert("🎉 Mot trouvé !"); 
+        else alert("💀 Perdu ! Le mot était "+currentWord);
+        // Mettre à jour score
+        db.ref("rooms/"+roomId+"/scores/"+playerName).transaction(val => (val||0)+(won?1:0));
+        // Afficher bouton Rejouer pour tous
+        document.getElementById("replayButton").style.display="inline-block";
+    }
+}
+
+/* ================= REJOUER ================= */
+function requestReplay(){
+    db.ref("rooms/"+roomId+"/replayRequests/"+playerName).set(true);
+    db.ref("rooms/"+roomId+"/replayRequests").once("value").then(snap=>{
+        const requests = snap.val() || {};
+        const allAgreed = players.every(p => requests[p]);
+        if(allAgreed){
+            startNextGame();
+        } else {
+            alert("En attente que tous les joueurs demandent de rejouer...");
+        }
+    });
+}
+
+function startNextGame(){
+    currentWord = words[Math.floor(Math.random()*words.length)];
+    guessedLetters = [];
+    attemptsLeft = 6;
+    turn = 0;
+    gamesPlayed++;
+    db.ref("rooms/"+roomId).update({
+        word: currentWord,
+        guessedLetters: {},
+        attemptsLeft: attemptsLeft,
+        turn: 0,
+        gamesPlayed: gamesPlayed,
+        replayRequests: {}
+    });
+    document.getElementById("replayButton").style.display="none";
 }
 </script>
 
