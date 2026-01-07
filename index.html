@@ -106,25 +106,44 @@ const replayBtn = document.getElementById("replay-btn");
 function generateRoomId(){ return Math.random().toString(36).substring(2,8).toUpperCase(); }
 
 function createRoom() {
-    playerName = document.getElementById("player-name").value.trim();
-    if(!playerName){ errorMessageP.textContent="Veuillez entrer un pseudo !"; return; }
-    totalGames = parseInt(document.getElementById("num-games").value) || 3;
-    roomId = generateRoomId();
-    const word = words[Math.floor(Math.random()*words.length)];
-    
-    db.ref("rooms/" + roomId).set({
-        word: word,
-        players: {[playerName]: 0},
-        guessedLetters: {},
-        attemptsLeft: 6,
-        turn: 0,
-        presence: {[playerName]: true},
-        replayRequests: {[playerName]: false},
-        totalGames: totalGames,
-        gamesPlayed: 0,
-        scores: {[playerName]: 0}
-    }).then(() => joinRoomUI());
+    try {
+        playerName = document.getElementById("player-name").value.trim();
+        if (!playerName) {
+            alert("Pseudo obligatoire");
+            return;
+        }
+
+        totalGames = parseInt(document.getElementById("num-games").value) || 3;
+        roomId = Math.random().toString(36).substring(2,8).toUpperCase();
+        const word = words[Math.floor(Math.random() * words.length)];
+
+        console.log("Création room:", roomId);
+
+        db.ref("rooms/" + roomId).set({
+            word: word,
+            players: { [playerName]: true },
+            guessedLetters: {},
+            attemptsLeft: 6,
+            turn: 0,
+            presence: { [playerName]: true },
+            replayRequests: { [playerName]: false },
+            totalGames: totalGames,
+            gamesPlayed: 0,
+            scores: { [playerName]: 0 }
+        }).then(() => {
+            console.log("Room créée avec succès");
+            joinRoomUI();
+        }).catch(err => {
+            console.error("Erreur Firebase :", err);
+            alert("Erreur création : " + err.message);
+        });
+
+    } catch (e) {
+        console.error("Erreur JS :", e);
+        alert("Erreur JS : " + e.message);
+    }
 }
+
 
 function joinRoom() {
     playerName = document.getElementById("player-name").value.trim();
@@ -326,5 +345,6 @@ function restartGame(){
 </script>
 </body>
 </html>
+
 
 
